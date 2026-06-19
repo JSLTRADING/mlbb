@@ -369,9 +369,8 @@ function computeKPIs(){
   const total=matches.length;
   const wins=matches.filter(m=>m.resultat==='Victoire').length;
   const winrate=total?Math.round((wins/total)*100):0;
-  const kdaList=matches.filter(m=>m.kills!=null&&m.deaths!=null&&m.assists!=null)
-    .map(m=>(+m.kills+ +m.assists)/Math.max(+m.deaths,1));
-  const avgKda=kdaList.length?kdaList.reduce((a,b)=>a+b,0)/kdaList.length:null;
+  const kdaMatches=matches.filter(m=>m.kills!=null&&m.deaths!=null&&m.assists!=null);
+  const avgKda=kdaMatches.length?kdaMatches.reduce((s,m)=>s+(+m.kills+ +m.assists)/(+m.deaths+1),0)/kdaMatches.length:null;
   const deathsList=matches.filter(m=>m.deaths!=null).map(m=>+m.deaths);
   const avgDeaths=deathsList.length?deathsList.reduce((a,b)=>a+b,0)/deathsList.length:null;
   let streak=0,streakType=null;
@@ -426,7 +425,7 @@ function heroStats(){
     if(!map[h])map[h]={wins:0,total:0,kdas:[],golds:[],durations:[],scores:[],dmgs:[],parts:[],ors:[]};
     const s=map[h];s.total++;
     if(m.resultat==='Victoire')s.wins++;
-    if(m.kills!=null&&m.deaths!=null&&m.assists!=null)s.kdas.push((+m.kills+ +m.assists)/Math.max(+m.deaths,1));
+    if(m.kills!=null&&m.deaths!=null&&m.assists!=null)s.kdas.push((+m.kills+ +m.assists)/(+m.deaths+1));
     if(m.or)s.ors.push(+m.or);
     if(m.or&&m.duree_partie){
       const dur=parseDuration(m.duree_partie);
