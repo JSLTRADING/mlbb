@@ -175,7 +175,7 @@ svg.chart{width:100%;overflow:visible;}
   <header class="top">
     <div class="title-block">
       <h1>Suivi Ranked — MLBB</h1>
-      <p>Analyses extraites par IA depuis tes captures de fin de partie</p>
+      <p>Analyses extraites par IA depuis tes captures de fin de partie &nbsp;·&nbsp; <span id="syncStatus" style="color:var(--muted);">⏳ Chargement…</span></p>
     </div>
     <div class="top-actions">
       <button class="btn-ghost" id="refsBtn">Références héros</button>
@@ -282,6 +282,15 @@ svg.chart{width:100%;overflow:visible;}
 </div>
 
 <script>
+
+const SUPABASE_URL='https://hxgytxpgkumoylddkqrl.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4Z3l0eHBna3Vtb3lsZGRrcXJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4NjYwNzcsImV4cCI6MjA5NzQ0MjA3N30.tJOf6q-6WwnmiLAMcNSMd2Qp5PEpmhTjU2iIzhiNDKc';
+const SB_HEADERS={'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Prefer':'resolution=merge-duplicates'};
+
+async function sbFetch(path,opts={}){
+  const r=await fetch(SUPABASE_URL+path,{...opts,headers:{...SB_HEADERS,...(opts.headers||{})}});
+  return r;
+}
 const STORAGE_KEY='matches';
 const HERO_REFS_KEY='hero-refs';
 let matches=[];
@@ -302,13 +311,53 @@ async function persistHeroRefs(){
   catch(e){alert("Impossible d'enregistrer (image trop lourde).");}
 }
 async function loadMatches(){
-  try{const r=localStorage.getItem(STORAGE_KEY);matches=r?JSON.parse(r):[];}
-  catch(e){matches=[];}
+  document.getElementById('syncStatus').textContent='⏳ Synchronisation…';
+  try{
+    const r=await sbFetch('/rest/v1/mlbb_matches?select=*&order=date.asc');
+    if(r.ok){
+      const data=await r.json();
+      matches=data.map(row=>({
+        id:row.id, date:row.date, heroe:row.heroe, role:row.role,
+        resultat:row.resultat, kills:row.kills, deaths:row.deaths, assists:row.assists,
+        or:row.or_gold, score_performance:row.score_performance,
+        degats_infliges:row.degats_infliges, degats_tourelle:row.degats_tourelle,
+        degats_subis:row.degats_subis, participation_teamfight:row.participation_teamfight,
+        mvp:row.mvp, duree_partie:row.duree_partie
+      }));
+      // Sync to localStorage as cache
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(matches));
+      document.getElementById('syncStatus').textContent='✓ Synchronisé';
+    } else {
+      // Fallback to localStorage
+      const r2=localStorage.getItem(STORAGE_KEY);matches=r2?JSON.parse(r2):[];
+    }
+  }catch(e){
+    const r2=localStorage.getItem(STORAGE_KEY);matches=r2?JSON.parse(r2):[];
+    document.getElementById('syncStatus').textContent='⚠️ Mode hors ligne';
+  }
   renderAll();
 }
+
 async function persist(){
-  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(matches));}
-  catch(e){console.error(e);}
+  // Save to localStorage immediately
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(matches));}catch(e){}
+  // Sync to Supabase
+  try{
+    const rows=matches.map(m=>({
+      id:String(m.id), date:m.date||null, heroe:m.heroe||null, role:m.role||null,
+      resultat:m.resultat||null, kills:m.kills??null, deaths:m.deaths??null, assists:m.assists??null,
+      or_gold:m.or??null, score_performance:m.score_performance??null,
+      degats_infliges:m.degats_infliges??null, degats_tourelle:m.degats_tourelle??null,
+      degats_subis:m.degats_subis??null, participation_teamfight:m.participation_teamfight??null,
+      mvp:m.mvp||null, duree_partie:m.duree_partie||null
+    }));
+    await sbFetch('/rest/v1/mlbb_matches',{method:'POST',body:JSON.stringify(rows),headers:{'Prefer':'resolution=merge-duplicates'}});
+  }catch(e){console.error('Supabase sync error',e);}
+}
+
+async function deleteFromSupabase(id){
+  try{await sbFetch('/rest/v1/mlbb_matches?id=eq.'+encodeURIComponent(id),{method:'DELETE'});}
+  catch(e){console.error('Supabase delete error',e);}
 }
 
 // ─── HERO COLOR ───
@@ -614,7 +663,9 @@ function renderAll(){
 
 function deleteMatch(id){
   matches=matches.filter(m=>String(m.id)!==String(id));
-  persist();renderAll();
+  persist();
+  deleteFromSupabase(id);
+  renderAll();
 }
 function editMatch(id){
   const m=matches.find(x=>String(x.id)===String(id));
