@@ -788,6 +788,7 @@ function showEditPanel(data,fromAnalysis){
       <div class="field"><label>Dégâts tourelle</label><input type="number" id="f_dtour" value="${data.degats_tourelle??''}"></div>
       <div class="field"><label>Dégâts subis</label><input type="number" id="f_dsub" value="${data.degats_subis??''}"></div>
       <div class="field"><label>Participation TF (%)</label><input type="number" id="f_participation" class="${fClass('participation_teamfight',data.participation_teamfight)}" value="${data.participation_teamfight??''}"></div>
+      <div class="field"><label>Durée</label><input type="text" id="f_duree" placeholder="ex: 15:32" value="${data.duree_partie||''}"></div>
       <div class="field"><label>MVP</label>
         <select id="f_mvp">
           <option value="Aucun"${data.mvp==='Aucun'?' selected':''}>Aucun</option>
