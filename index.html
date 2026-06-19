@@ -802,6 +802,7 @@ function showEditPanel(data,fromAnalysis){
         <button type="button" data-res="Defaite" class="${data.resultat==='Defaite'?'active defaite':''}">Défaite</button>
       </div>
     </div>
+    <div id="saveErr" style="display:none;color:var(--crimson);font-size:12px;margin-bottom:8px;">Sélectionne Victoire ou Défaite avant d'enregistrer.</div>
     <div class="edit-actions">
       <button class="btn-secondary" id="cancelEdit">Annuler</button>
       <button class="btn-primary" id="saveEdit" style="width:auto;padding:9px 22px;">Enregistrer le match</button>
@@ -822,7 +823,9 @@ function showEditPanel(data,fromAnalysis){
 
   document.getElementById('cancelEdit').addEventListener('click',()=>{container.innerHTML='';editingId=null;});
   document.getElementById('saveEdit').addEventListener('click',()=>{
-    if(!selectedResult){alert('Sélectionne Victoire ou Défaite.');return;}
+    const errSave=document.getElementById('saveErr');
+    if(!selectedResult){if(errSave)errSave.style.display='block';return;}
+    if(errSave)errSave.style.display='none';
     const heroSel=document.getElementById('f_heroe').value;
     const heroFinal=heroSel==='__autre'?document.getElementById('f_heroe_autre').value.trim():heroSel;
 
