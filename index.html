@@ -150,8 +150,6 @@ svg.chart{width:100%;overflow:visible;}
 .export-box textarea{width:100%;height:120px;background:var(--surface-2);border:1px solid var(--line);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11px;padding:10px;border-radius:6px;resize:vertical;}
 
 /* HEATMAP */
-.heatmap-grid{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:8px;}
-.heatmap-cell{aspect-ratio:1;border-radius:2px;background:var(--surface-2);}
 
 /* REFS */
 .slots-refs{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
@@ -252,9 +250,8 @@ svg.chart{width:100%;overflow:visible;}
     </div>
     <div class="charts-grid">
       <div class="chart-panel">
-        <h2>Heatmap victoires (heure de la journée)</h2>
-        <p style="font-size:11px;color:var(--muted);margin-bottom:10px;">Basé sur l'heure enregistrée (saisie manuelle ou heure d'upload)</p>
-        <div id="heatmapWrap"></div>
+        <h2>Winrate par lane</h2>
+        <div id="wrByLane"></div>
       </div>
 
     </div>
@@ -455,7 +452,7 @@ function renderAnalytics(){
   renderKDAByHero();
   renderGPMByHero();
   renderRollingWRChart();
-  renderHeatmap();
+  renderWRByLane();
 }
 
 function renderBarChart(containerId,items){
@@ -507,27 +504,29 @@ function renderRollingWRChart(){
     ${coords.map(([cx,cy],i)=>`<circle cx="${cx}" cy="${cy}" r="3" fill="${pts[i]>=50?'var(--gold)':'var(--crimson)'}"/>`).join('')}`;
 }
 
-function renderHeatmap(){
-  const wrap=document.getElementById('heatmapWrap');
-  // count wins/total by hour
-  const byHour=Array(24).fill(null).map(()=>({w:0,t:0}));
+function renderWRByLane(){
+  const el=document.getElementById('wrByLane');
+  const lanes=['Gold','Exp','Mid','Jungle','Roam'];
+  const map={};
   matches.forEach(m=>{
-    if(!m.date)return;
-    const d=new Date(m.date);const h=d.getHours();
-    byHour[h].t++;if(m.resultat==='Victoire')byHour[h].w++;
+    const l=m.role;if(!l||!lanes.includes(l))return;
+    if(!map[l])map[l]={w:0,t:0};
+    map[l].t++;if(m.resultat==='Victoire')map[l].w++;
   });
-  const maxT=Math.max(...byHour.map(b=>b.t),1);
-  wrap.innerHTML=`<div style="display:flex;gap:2px;flex-wrap:wrap;">
-    ${byHour.map((b,h)=>{
-      const pct=b.t?b.w/b.t:0;
-      const alpha=b.t?0.2+0.8*(b.t/maxT):0;
-      const col=b.t?(pct>=0.5?`rgba(217,165,61,${alpha})`:`rgba(177,75,67,${alpha})`):'var(--surface-2)';
-      return`<div style="width:calc(100%/24 - 2px);min-width:10px;height:40px;background:${col};border-radius:3px;position:relative;" title="${h}h : ${b.w}V/${b.t-b.w}D${b.t?' ('+Math.round(pct*100)+'%)+':''}"></div>`;
-    }).join('')}
-  </div>
-  <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px;">
-    <span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span>
-  </div>`;
+  const items=lanes.filter(l=>map[l]).map(l=>({
+    name:l,
+    value:Math.round(map[l].w/map[l].t*100),
+    pct:map[l].w/map[l].t*100,
+    label:`${map[l].w}V/${map[l].t-map[l].w}D`,
+    color:heroColor(l)
+  })).sort((a,b)=>b.value-a.value);
+  if(!items.length){el.innerHTML='<div class="empty-state">Aucune lane enregistrée.<br>Renseigne la lane dans le formulaire de saisie.</div>';return;}
+  el.innerHTML=items.map(({name,value,pct,label,color})=>`
+    <div class="wr-bar-row">
+      <div class="wr-bar-name"><span class="dot" style="background:${color}"></span>${name}</div>
+      <div class="wr-bar-bg"><div class="wr-bar-fill${value<50?' low':''}" style="width:${Math.min(pct,100)}%"></div></div>
+      <div style="font-size:11px;font-family:'JetBrains Mono',monospace;min-width:60px;text-align:right;color:${value>=50?'var(--gold)':'var(--crimson)'};">${value}% <span style="color:var(--muted);font-size:10px;">${label}</span></div>
+    </div>`).join('');
 }
 
 
