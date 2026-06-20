@@ -184,17 +184,17 @@ svg.chart{width:100%;overflow:visible;}
   </header>
 
   <div class="tabs-nav">
-    <button class="tab-btn active" data-tab="tab-home">Saisie</button>
-    <button class="tab-btn" data-tab="tab-stats">Analytics</button>
+    <button class="tab-btn active" data-tab="tab-stats">Analytics</button>
     <button class="tab-btn" data-tab="tab-heroes">Héros</button>
     <button class="tab-btn" data-tab="tab-history">Historique</button>
+    <button class="tab-btn" data-tab="tab-home">Saisie</button>
   </div>
 
   <!-- TAB: SAISIE -->
-  <div id="tab-home" class="tab-content active">
+  <div id="tab-home" class="tab-content">
     <div id="refsPanelContainer"></div>
     <div id="editPanelContainer"></div>
-    <div class="grid-top">
+    <div style="margin-bottom:20px;">
       <div class="panel">
         <h2>Nouvelle partie</h2>
         <div class="slots">
@@ -216,20 +216,20 @@ svg.chart{width:100%;overflow:visible;}
           <button class="btn-ghost" id="manualBtn" style="white-space:nowrap;">Saisie manuelle</button>
         </div>
       </div>
-      <div class="panel">
-        <h2>Performance globale</h2>
-        <div class="kpi-grid" id="kpiGrid"></div>
-        <svg class="spark" id="sparkSvg" viewBox="0 0 400 56" preserveAspectRatio="none"></svg>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px;">Évolution cumulée des points de rang</div>
-        <div style="margin-top:12px;" id="winRateRolling"></div>
-      </div>
     </div>
     <div id="importContainer"></div>
     <div id="exportContainer"></div>
   </div>
 
   <!-- TAB: ANALYTICS -->
-  <div id="tab-stats" class="tab-content">
+  <div id="tab-stats" class="tab-content active">
+    <div class="panel" style="margin-bottom:20px;">
+      <h2>Performance globale</h2>
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <svg class="spark" id="sparkSvg" viewBox="0 0 400 56" preserveAspectRatio="none"></svg>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">Évolution cumulée des points de rang</div>
+      <div style="margin-top:12px;" id="winRateRolling"></div>
+    </div>
     <div class="charts-grid">
       <div class="chart-panel">
         <h2>Winrate par héros</h2>
