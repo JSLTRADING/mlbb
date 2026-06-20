@@ -57,7 +57,7 @@ button{font-family:'Inter',sans-serif;cursor:pointer;}
 .btn-primary:hover:not(:disabled){filter:brightness(1.08);}
 
 /* KPIs */
-.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
 @media(max-width:500px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
 .kpi{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:11px;}
 .kpi .num{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;}
@@ -373,24 +373,16 @@ function computeKPIs(){
   const avgKda=kdaMatches.length?kdaMatches.reduce((s,m)=>s+(+m.kills+ +m.assists)/(+m.deaths+1),0)/kdaMatches.length:null;
   const deathsList=matches.filter(m=>m.deaths!=null).map(m=>+m.deaths);
   const avgDeaths=deathsList.length?deathsList.reduce((a,b)=>a+b,0)/deathsList.length:null;
-  const sortedByIdx=[...matches].sort((a,b)=>(a.idx??0)-(b.idx??0));
-  let streak=0,streakType=null;
-  for(let i=sortedByIdx.length-1;i>=0;i--){
-    const r=sortedByIdx[i].resultat;if(!r)break;
-    if(streakType===null){streakType=r;streak=1;}
-    else if(r===streakType)streak++;else break;
-  }
+
   const totalPts=matches.reduce((a,m)=>a+(+m.points_rang_gagnes||0),0);
-  return{total,wins,winrate,avgKda,avgDeaths,streak,streakType,totalPts};
+  return{total,wins,winrate,avgKda,avgDeaths,totalPts};
 }
 function renderKPIs(){
   const k=computeKPIs();
-  const streakLabel=k.streak?(k.streak+(k.streakType==='Victoire'?'V':'D')):'—';
   document.getElementById('kpiGrid').innerHTML=`
     <div class="kpi"><div class="num">${k.total}</div><div class="lbl">Matchs</div></div>
     <div class="kpi win"><div class="num">${k.winrate}%</div><div class="lbl">Winrate</div></div>
     <div class="kpi"><div class="num">${k.avgKda!==null?k.avgKda.toFixed(2):'—'}</div><div class="lbl">KDA moyen</div></div>
-    <div class="kpi ${k.streakType==='Victoire'?'win':'loss'}"><div class="num">${streakLabel}</div><div class="lbl">Série</div></div>
     <div class="kpi loss"><div class="num">${k.avgDeaths!==null?k.avgDeaths.toFixed(1):'—'}</div><div class="lbl">Morts moy.</div></div>`;
 }
 
