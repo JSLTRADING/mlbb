@@ -292,7 +292,7 @@ let matches=[];
 let slotFiles={1:null,2:null};
 let editingId=null;
 let heroRefs={};
-let sortCol='date';let sortDir=-1;
+let sortCol='idx';let sortDir=-1;
 const KNOWN_HEROES=['Lunox','Valentina','Brody','Clint'];
 const RANK_TIERS=['Warrior','Elite','Master','Grandmaster','Epic','Legend','Mythic','Mythical Glory'];
 
@@ -593,7 +593,7 @@ function renderTable(){
     return(+va-+vb)*sortDir;
   });
   const arrow=col=>`<span class="sort-arrow">${sortCol===col?(sortDir>0?'▲':'▼'):'↕'}</span>`;
-  const rows=sorted.reverse().map(m=>{
+  const rows=sorted.map(m=>{
     const hasKda=m.kills!=null&&m.deaths!=null&&m.assists!=null;
     const kda=hasKda?`${m.kills}/${m.deaths}/${m.assists}`:'—';
     const ratio=hasKda?((+m.kills+ +m.assists)/Math.max(+m.deaths,1)).toFixed(2):'—';
