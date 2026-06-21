@@ -308,11 +308,11 @@ async function persistHeroRefs(){
 async function loadMatches(){
   document.getElementById('syncStatus').textContent='⏳ Synchronisation…';
   try{
-    const r=await sbFetch('/rest/v1/mlbb_matches?select=*&order=date.asc');
+    const r=await sbFetch('/rest/v1/mlbb_matches?select=*&order=idx.asc');
     if(r.ok){
       const data=await r.json();
       matches=data.map(row=>({
-        id:row.id, date:row.date, heroe:row.heroe, role:row.role,
+        id:row.id, idx:row.idx, date:row.date, heroe:row.heroe, role:row.role,
         resultat:row.resultat, kills:row.kills, deaths:row.deaths, assists:row.assists,
         or:row.or_gold, score_performance:row.score_performance,
         degats_infliges:row.degats_infliges, degats_tourelle:row.degats_tourelle,
@@ -341,7 +341,7 @@ async function persist(){
     const rows=matches.map(m=>({
       id:String(m.id), date:m.date||null, heroe:m.heroe||null, role:m.role||null,
       resultat:m.resultat||null, kills:m.kills??null, deaths:m.deaths??null, assists:m.assists??null,
-      or_gold:m.or??null, score_performance:m.score_performance??null,
+      idx:m.idx??null, or_gold:m.or??null, score_performance:m.score_performance??null,
       degats_infliges:m.degats_infliges??null, degats_tourelle:m.degats_tourelle??null,
       degats_subis:m.degats_subis??null, participation_teamfight:m.participation_teamfight??null,
       mvp:m.mvp||null, duree_partie:m.duree_partie||null
