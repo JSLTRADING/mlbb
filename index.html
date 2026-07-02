@@ -777,7 +777,7 @@ async function analyzeScreenshots(){
 // Références héros non envoyées à Groq (limite 5 images, 2 captures suffisent)
     const response=await fetch('https://api.groq.com/openai/v1/chat/completions',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer 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'},
+      headers:{'Content-Type':'application/json','Authorization':'Bearer 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'},
       body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1000,response_format:{type:'json_object'},messages:[{role:'user',content:groqContent}]})
     });
     if(!response.ok){const err=await response.json().catch(()=>({}));throw new Error(err.error?.message||response.status);}
