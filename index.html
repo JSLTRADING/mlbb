@@ -164,6 +164,33 @@ svg.chart{width:100%;overflow:visible;}
 
 /* TOOLTIP */
 .tooltip{position:fixed;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:8px 12px;font-size:11px;pointer-events:none;z-index:999;white-space:nowrap;display:none;}
+
+.corr-table{width:100%;border-collapse:collapse;}
+.corr-table th{font-family:'Rajdhani',sans-serif;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line);font-weight:600;text-align:left;}
+.corr-table th.num{text-align:right;}
+.corr-table td{padding:9px 10px;border-bottom:1px solid var(--line);font-size:13px;}
+.corr-table td.num{text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;}
+.corr-table tr:last-child td{border-bottom:none;}
+.corr-label{color:var(--muted);font-size:11px;}
+.val-v{color:var(--gold);font-weight:600;}
+.val-d{color:var(--crimson);font-weight:600;}
+.delta-pos{color:#3DD93D;font-size:11px;}
+.delta-neg{color:var(--crimson);font-size:11px;}
+.corr-bar-wrap{display:flex;align-items:center;gap:4px;margin-top:3px;}
+.corr-bar{height:4px;border-radius:2px;min-width:2px;}
+.dur-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.dur-label{width:80px;font-size:12px;color:var(--muted);white-space:nowrap;}
+.dur-count{font-size:10px;color:var(--muted);min-width:28px;}
+.hero-perf-table{width:100%;min-width:700px;border-collapse:separate;border-spacing:0;font-size:12px;}
+.hero-perf-table th{font-family:'Rajdhani',sans-serif;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line);font-weight:600;text-align:right;cursor:pointer;user-select:none;white-space:nowrap;}
+.hero-perf-table th:first-child{text-align:left;position:sticky;left:0;z-index:2;background:var(--surface);}
+.hero-perf-table th:hover{color:var(--text);}
+.hero-perf-table th.hp-sorted{color:var(--gold);}
+.hero-perf-table td{padding:8px 8px;border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:11.5px;text-align:right;}
+.hero-perf-table td:first-child{font-family:'Inter',sans-serif;text-align:left;font-size:12px;position:sticky;left:0;z-index:1;background:var(--surface);}
+.hero-perf-table tr:hover{background:var(--surface-2);}.hero-perf-table tr:hover td:first-child{background:var(--surface-2);}
+.hero-perf-table tr:last-child td{border-bottom:none;}
+.wr-pill{display:inline-block;padding:2px 7px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;}
 </style>
 </head>
 <body>
@@ -175,8 +202,7 @@ svg.chart{width:100%;overflow:visible;}
       <p>Analyses extraites par IA depuis tes captures de fin de partie &nbsp;·&nbsp; <span id="syncStatus" style="color:var(--muted);">⏳ Chargement…</span></p>
     </div>
     <div class="top-actions">
-      <button class="btn-ghost" id="refsBtn">Références héros</button>
-      <button class="btn-ghost" id="importBtn">Importer CSV</button>
+<button class="btn-ghost" id="importBtn">Importer CSV</button>
       <button class="btn-ghost" id="exportBtn">Exporter CSV</button>
       <button class="btn-ghost" id="resetBtn">Réinitialiser</button>
     </div>
@@ -191,8 +217,7 @@ svg.chart{width:100%;overflow:visible;}
 
   <!-- TAB: SAISIE -->
   <div id="tab-home" class="tab-content">
-    <div id="refsPanelContainer"></div>
-    <div id="editPanelContainer"></div>
+<div id="editPanelContainer"></div>
     <div style="margin-bottom:20px;">
       <div class="panel">
         <h2>Nouvelle partie</h2>
@@ -228,6 +253,28 @@ svg.chart{width:100%;overflow:visible;}
 
       <div style="margin-top:12px;" id="winRateRolling"></div>
     </div>
+    <div class="panel" style="margin-bottom:20px;">
+      <h2>Pourquoi je gagne ou je perds ?</h2>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:14px;">Moyenne des indicateurs clés selon le résultat.</p>
+      <div id="correlationTable"></div>
+    </div>
+    <div class="charts-grid" style="margin-bottom:20px;">
+      <div class="chart-panel">
+        <h2>Winrate par durée de partie</h2>
+        <div id="wrByDuration"></div>
+      </div>
+      <div class="chart-panel">
+        <h2>Winrate par lane</h2>
+        <div id="wrByLane"></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:20px;">
+      <h2>Performance par héros</h2>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+        <div id="heroPerformanceTable"></div>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px;text-align:center;" id="heroTableScrollHint"></div>
+    </div>
     <div class="charts-grid">
       <div class="chart-panel">
         <h2>Winrate par héros</h2>
@@ -246,13 +293,7 @@ svg.chart{width:100%;overflow:visible;}
         <div id="gpmByHero"></div>
       </div>
     </div>
-    <div class="charts-grid">
-      <div class="chart-panel">
-        <h2>Winrate par lane</h2>
-        <div id="wrByLane"></div>
-      </div>
 
-    </div>
   </div>
 
   <!-- TAB: HÉROS -->
@@ -287,24 +328,14 @@ async function sbFetch(path,opts={}){
   return r;
 }
 const STORAGE_KEY='matches';
-const HERO_REFS_KEY='hero-refs';
 let matches=[];
 let slotFiles={1:null,2:null};
 let editingId=null;
-let heroRefs={};
 let sortCol='idx';let sortDir=-1;
 const KNOWN_HEROES=['Lunox','Valentina','Brody','Clint'];
 const RANK_TIERS=['Warrior','Elite','Master','Grandmaster','Epic','Legend','Mythic','Mythical Glory'];
 
 // ─── STORAGE ───
-async function loadHeroRefs(){
-  try{const r=localStorage.getItem(HERO_REFS_KEY);heroRefs=r?JSON.parse(r):{};}
-  catch(e){heroRefs={};}
-}
-async function persistHeroRefs(){
-  try{localStorage.setItem(HERO_REFS_KEY,JSON.stringify(heroRefs));}
-  catch(e){alert("Impossible d'enregistrer (image trop lourde).");}
-}
 async function loadMatches(){
   document.getElementById('syncStatus').textContent='⏳ Synchronisation…';
   try{
@@ -429,7 +460,177 @@ function parseDuration(s){
 function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;}
 
 // ─── ANALYTICS TAB ───
+
+// ─── CORRÉLATION VICTOIRE/DÉFAITE ───
+function renderCorrelation(){
+  const el=document.getElementById('correlationTable');
+  if(!el)return;
+  function parseDur(s){if(!s||!s.trim())return null;const m=s.match(/(\d+):(\d+)/);return m?+m[1]*60+ +m[2]:null;}
+  const wins=matches.filter(m=>m.resultat==='Victoire');
+  const losses=matches.filter(m=>m.resultat==='Defaite'||m.resultat==='Défaite');
+  function avgStat(list,fn){const vals=list.map(fn).filter(v=>v!=null&&!isNaN(v));return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;}
+  const metrics=[
+    {label:'KDA',desc:'(K+A)/(D+1) par partie',
+      v:avgStat(wins,m=>{if(m.kills==null||m.kills==='')return null;return(+m.kills+ +m.assists)/(+m.deaths+1);}),
+      d:avgStat(losses,m=>{if(m.kills==null||m.kills==='')return null;return(+m.kills+ +m.assists)/(+m.deaths+1);}),
+      fmt:v=>v!=null?v.toFixed(2):'—',hi:true},
+    {label:'Gold / min',desc:'Or / durée',
+      v:avgStat(wins,m=>{const dur=parseDur(m.duree_partie);return dur&&m.or?+m.or/dur*60:null;}),
+      d:avgStat(losses,m=>{const dur=parseDur(m.duree_partie);return dur&&m.or?+m.or/dur*60:null;}),
+      fmt:v=>v!=null?Math.round(v)+'g/min':'—',hi:true},
+    {label:'Dégâts / min',desc:'Dégâts infligés / durée',
+      v:avgStat(wins,m=>{const dur=parseDur(m.duree_partie);return dur&&m.degats_infliges?+m.degats_infliges/dur*60:null;}),
+      d:avgStat(losses,m=>{const dur=parseDur(m.duree_partie);return dur&&m.degats_infliges?+m.degats_infliges/dur*60:null;}),
+      fmt:v=>v!=null?Math.round(v).toLocaleString():'—',hi:true},
+    {label:'Dégâts tourelle',desc:'Moyenne dégâts aux tours',
+      v:avgStat(wins,m=>m.degats_tourelle?+m.degats_tourelle:null),
+      d:avgStat(losses,m=>m.degats_tourelle?+m.degats_tourelle:null),
+      fmt:v=>v!=null?Math.round(v).toLocaleString():'—',hi:true},
+    {label:'Participation TF',desc:'% teamfights',
+      v:avgStat(wins,m=>m.participation_teamfight?+m.participation_teamfight:null),
+      d:avgStat(losses,m=>m.participation_teamfight?+m.participation_teamfight:null),
+      fmt:v=>v!=null?v.toFixed(1)+'%':'—',hi:true},
+    {label:'Durée',desc:'Minutes par partie',
+      v:avgStat(wins,m=>{const d=parseDur(m.duree_partie);return d?d/60:null;}),
+      d:avgStat(losses,m=>{const d=parseDur(m.duree_partie);return d?d/60:null;}),
+      fmt:v=>v!=null?v.toFixed(1)+'min':'—',hi:false},
+    {label:'Morts',desc:'Nombre moyen de morts',
+      v:avgStat(wins,m=>m.deaths!=null&&m.deaths!==''?+m.deaths:null),
+      d:avgStat(losses,m=>m.deaths!=null&&m.deaths!==''?+m.deaths:null),
+      fmt:v=>v!=null?v.toFixed(1):'—',hi:false}
+  ];
+  const mx=metrics.map(m=>Math.max(m.v||0,m.d||0));
+  const rows=metrics.map((m,i)=>{
+    if(m.v==null&&m.d==null)return'';
+    const delta=m.v!=null&&m.d!=null?m.v-m.d:null;
+    const better=m.hi?(delta>0):(delta<0);
+    let deltaStr='';
+    if(delta!=null){const abs=Math.abs(delta);deltaStr=(delta>=0?'+':'-')+(abs<10?abs.toFixed(2):Math.round(abs).toLocaleString());}
+    const vPct=m.v!=null?Math.min(m.v/(mx[i]||1)*100,100):0;
+    const dPct=m.d!=null?Math.min(m.d/(mx[i]||1)*100,100):0;
+    return '<tr><td><div style="font-weight:600;font-size:13px;">'+m.label+'</div><div class="corr-label">'+m.desc+'</div>'
+      +'<div class="corr-bar-wrap"><div class="corr-bar" style="width:'+vPct.toFixed(0)+'%;background:var(--gold);"></div></div>'
+      +'<div class="corr-bar-wrap"><div class="corr-bar" style="width:'+dPct.toFixed(0)+'%;background:var(--crimson);"></div></div>'
+      +'</td>'
+      +'<td class="num"><div class="val-v">'+m.fmt(m.v)+'</div><div style="height:4px;"></div><div class="val-d">'+m.fmt(m.d)+'</div></td>'
+      +'<td class="num">'+(delta!=null?'<span class="'+(better?'delta-pos':'delta-neg')+'">'+deltaStr+'</span>':'—')+'</td>'
+      +'</tr>';
+  }).join('');
+  el.innerHTML='<table class="corr-table"><thead><tr>'
+    +'<th>Indicateur</th>'
+    +'<th class="num"><span style="color:var(--gold);">Victoire</span> / <span style="color:var(--crimson);">Défaite</span></th>'
+    +'<th class="num">Écart</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="font-size:10px;color:var(--muted);margin-top:10px;">Barre or = victoires  Barre rouge = défaites</div>';
+}
+
+// ─── WINRATE PAR DURÉE ───
+function renderWRByDuration(){
+  const el=document.getElementById('wrByDuration');
+  if(!el)return;
+  function parseDur(s){if(!s||!s.trim())return null;const m=s.match(/(\d+):(\d+)/);return m?+m[1]*60+ +m[2]:null;}
+  const buckets=[
+    {label:'< 12 min',lo:0,hi:720},
+    {label:'12-15 min',lo:720,hi:900},
+    {label:'15-18 min',lo:900,hi:1080},
+    {label:'18-22 min',lo:1080,hi:1320},
+    {label:'> 22 min',lo:1320,hi:99999}
+  ];
+  el.innerHTML=buckets.map(b=>{
+    const grp=matches.filter(m=>{const d=parseDur(m.duree_partie);return d!=null&&d>=b.lo&&d<b.hi;});
+    if(!grp.length)return '<div class="dur-row"><div class="dur-label">'+b.label+'</div><div style="color:var(--muted);font-size:11px;">Aucune partie</div></div>';
+    const w=grp.filter(m=>m.resultat==='Victoire').length;
+    const wr=Math.round(w/grp.length*100);
+    const col=wr>=50?'var(--gold)':'var(--crimson)';
+    return '<div class="dur-row">'
+      +'<div class="dur-label">'+b.label+'</div>'
+      +'<div style="flex:1;height:18px;background:var(--surface-2);border-radius:4px;overflow:hidden;">'
+      +'<div style="width:'+wr+'%;height:100%;background:'+col+';border-radius:4px;transition:width .3s;"></div>'
+      +'</div>'
+      +'<div style="min-width:38px;text-align:right;font-family:Rajdhani,sans-serif;font-weight:700;color:'+col+';">'+wr+'%</div>'
+      +'<div class="dur-count">'+grp.length+'p</div>'
+      +'</div>';
+  }).join('');
+}
+
+// ─── PERFORMANCE PAR HÉROS (TABLE TRIABLE) ───
+let heroSortCol='t';let heroSortDir=-1;
+function renderHeroPerformanceTable(){
+  const el=document.getElementById('heroPerformanceTable');
+  if(!el)return;
+  function parseDur(s){if(!s||!s.trim())return null;const m=s.match(/(\d+):(\d+)/);return m?+m[1]*60+ +m[2]:null;}
+  function avgArr(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;}
+  const map={};
+  matches.forEach(m=>{
+    const h=m.heroe||'?';
+    if(!map[h])map[h]={t:0,w:0,kdas:[],golds:[],dmgmins:[],tours:[],parts:[],deaths:[],mvpv:0,mvpd:0};
+    const s=map[h];s.t++;
+    if(m.resultat==='Victoire')s.w++;
+    if(m.kills!=null&&m.kills!=='')s.kdas.push((+m.kills+ +m.assists)/(+m.deaths+1));
+    if(m.deaths!=null&&m.deaths!=='')s.deaths.push(+m.deaths);
+    const dur=parseDur(m.duree_partie);
+    if(dur&&m.or&&m.or!=='')s.golds.push(+m.or/dur*60);
+    if(dur&&m.degats_infliges&&m.degats_infliges!=='')s.dmgmins.push(+m.degats_infliges/dur*60);
+    if(m.degats_tourelle&&m.degats_tourelle!=='')s.tours.push(+m.degats_tourelle);
+    if(m.participation_teamfight&&m.participation_teamfight!=='')s.parts.push(+m.participation_teamfight);
+    if(m.mvp==='MVP Victoire')s.mvpv++;
+    if(m.mvp==='MVP Defaite')s.mvpd++;
+  });
+  const rows=Object.entries(map).map(([name,s])=>({
+    name,t:s.t,
+    wr:s.t?Math.round(s.w/s.t*100):0,
+    kda:avgArr(s.kdas),
+    mvpPct:s.t?Math.round((s.mvpv+s.mvpd)/s.t*100):0,
+    gpm:avgArr(s.golds),
+    dpm:avgArr(s.dmgmins),
+    push:avgArr(s.tours),
+    tf:avgArr(s.parts),
+    deaths:avgArr(s.deaths)
+  }));
+  rows.sort((a,b)=>{
+    const va=a[heroSortCol],vb=b[heroSortCol];
+    if(va==null)return 1;if(vb==null)return-1;
+    if(typeof va==='string')return va.localeCompare(vb)*heroSortDir;
+    return(va-vb)*heroSortDir;
+  });
+  const cols=[
+    {key:'name',label:'Héros',sortable:true,
+      fmt:v=>'<span class="dot" style="background:'+heroColor(v)+'"></span>'+v},
+    {key:'t',label:'Parties',sortable:true,fmt:v=>v},
+    {key:'wr',label:'WR %',sortable:true,fmt:v=>{
+      const col=v>=50?'var(--gold)':'var(--crimson)';
+      const bg=v>=50?'var(--gold-soft)':'var(--crimson-soft)';
+      return '<span class="wr-pill" style="background:'+bg+';color:'+col+';">'+v+'%</span>';}},
+    {key:'kda',label:'KDA',sortable:true,fmt:v=>v!=null?v.toFixed(2):'—'},
+    {key:'mvpPct',label:'MVP %',sortable:true,fmt:v=>v+'%'},
+    {key:'gpm',label:'Or/min',sortable:true,fmt:v=>v!=null?Math.round(v):'—'},
+    {key:'dpm',label:'Dmg/min',sortable:true,fmt:v=>v!=null?Math.round(v).toLocaleString():'—'},
+    {key:'push',label:'Push moy.',sortable:true,fmt:v=>v!=null?Math.round(v).toLocaleString():'—'},
+    {key:'tf',label:'TF %',sortable:true,fmt:v=>v!=null?v.toFixed(0)+'%':'—'},
+    {key:'deaths',label:'Morts',sortable:true,fmt:v=>v!=null?v.toFixed(1):'—'}
+  ];
+  const arrow=key=>heroSortCol===key?(heroSortDir>0?'^':'v'):'';
+  const thead=cols.map(col=>'<th class="'+(heroSortCol===col.key?'hp-sorted':'')+'" data-hcol="'+col.key+'" style="'+(col.key==='name'?'text-align:left;':'')+'">'+col.label+(heroSortCol===col.key?' '+arrow(col.key):'')+' </th>').join('');
+  const tbody=rows.map(r=>'<tr>'+cols.map(col=>'<td>'+col.fmt(r[col.key])+'</td>').join('')+'</tr>').join('');
+  el.innerHTML='<table class="hero-perf-table"><thead><tr>'+thead+'</tr></thead><tbody>'+tbody+'</tbody></table>';
+
+  // Show scroll hint on mobile
+  const hint = document.getElementById('heroTableScrollHint');
+  if(hint && window.innerWidth < 768) hint.textContent = 'Fais glisser vers la droite pour voir toutes les colonnes';
+  else if(hint) hint.textContent = '';
+  el.querySelectorAll('th[data-hcol]').forEach(th=>{
+    th.addEventListener('click',()=>{
+      if(heroSortCol===th.dataset.hcol)heroSortDir*=-1;
+      else{heroSortCol=th.dataset.hcol;heroSortDir=-1;}
+      renderHeroPerformanceTable();
+    });
+  });
+}
+
 function renderAnalytics(){
+  renderCorrelation();
+  renderWRByDuration();
+  renderHeroPerformanceTable();
   renderWRByHero();
   renderKDAByHero();
   renderGPMByHero();
@@ -656,30 +857,6 @@ function editMatch(id){
 }
 
 // ─── REFS PANEL ───
-function renderRefsPanel(){
-  const c=document.getElementById('refsPanelContainer');
-  c.innerHTML=`<div class="panel" style="margin-bottom:18px;">
-    <h2>Références héros (optionnel)</h2>
-    <p style="font-size:12px;color:var(--muted);margin:-6px 0 12px;">Ajoute une image nette de chaque héros pour fiabiliser sa reconnaissance.</p>
-    <div class="slots-refs">
-      ${KNOWN_HEROES.map(h=>`
-        <div class="slot ref-slot" data-hero="${h}" tabindex="0" style="min-height:80px;${heroRefs[h]?'border-style:solid;padding:0;overflow:hidden;':''}">
-          ${heroRefs[h]
-            ?`<img src="${heroRefs[h]}" style="width:100%;height:80px;object-fit:cover;display:block;"><button class="clear-btn" data-clear-hero="${h}">✕</button>`
-            :`<span>${h}</span><span class="slot-label">Clique ou colle</span>`}
-        </div>`).join('')}
-    </div>
-  </div>`;
-  c.querySelectorAll('.ref-slot').forEach(slotEl=>{
-    const hero=slotEl.dataset.hero;
-    slotEl.addEventListener('click',e=>{if(e.target.classList.contains('clear-btn')||heroRefs[hero])return;const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.onchange=()=>{if(inp.files[0])setHeroRef(hero,inp.files[0]);};inp.click();});
-    slotEl.addEventListener('dragover',e=>e.preventDefault());
-    slotEl.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files[0])setHeroRef(hero,e.dataTransfer.files[0]);});
-  });
-}
-function setHeroRef(hero,file){
-  const r=new FileReader();r.onload=async()=>{heroRefs[hero]=r.result;await persistHeroRefs();renderRefsPanel();};r.readAsDataURL(file);
-}
 
 // ─── SLOTS ───
 function setupSlot(slotEl,fileInputEl,slotNum){
@@ -707,7 +884,6 @@ function clearSlot(slotNum){
 document.addEventListener('click',e=>{
   if(e.target.classList.contains('clear-btn')){
     if(e.target.dataset.slot){clearSlot(e.target.dataset.slot);}
-    else if(e.target.dataset.clearHero){delete heroRefs[e.target.dataset.clearHero];persistHeroRefs();renderRefsPanel();}
   }
 });
 // Global paste
@@ -741,11 +917,6 @@ async function analyzeScreenshots(){
       {type:'image',source:{type:'base64',media_type:slotFiles[1].type||'image/png',data:b1}},
       {type:'image',source:{type:'base64',media_type:slotFiles[2].type||'image/png',data:b2}}
     ];
-    const refHeroes=KNOWN_HEROES.filter(h=>heroRefs[h]);
-    refHeroes.forEach(h=>{
-      const m=heroRefs[h].match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
-      if(m)contentImages.push({type:'image',source:{type:'base64',media_type:m[1],data:m[2]}});
-    });
     let refsLine='';
     if(refHeroes.length){refsLine=' Les images suivantes sont des références visuelles dans cet ordre : '+refHeroes.map((h,i)=>`image ${3+i} = ${h}`).join(', ')+'. Compare le portrait du joueur JS001 à ces références.';}
     const prompt=`Tu es un extracteur de données pour Mobile Legends: Bang Bang (MLBB), mode classé. Capture 1 = tableau des scores. Capture 2 = écran de stats détaillées. Le joueur à suivre s'appelle exactement "JS001". Le héros fait probablement partie de : Lunox, Valentina, Brody, Clint.${refsLine} Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown, avec exactement ces clés : {"resultat":"Victoire"|"Defaite"|null,"heroe":string|null,"kills":number|null,"deaths":number|null,"assists":number|null,"or":number|null,"score_performance":number|null,"degats_infliges":number|null,"degats_tourelle":number|null,"degats_subis":number|null,"participation_teamfight":number|null,"mvp":"MVP Victoire"|"MVP Defaite"|"Aucun"|null,"duree_partie":string|null,"confidence":{"resultat":0-1,"heroe":0-1,"kills":0-1,"deaths":0-1,"assists":0-1,"or":0-1,"score_performance":0-1,"degats_infliges":0-1,"participation_teamfight":0-1}}. "confidence" est ton niveau de certitude (1=très sûr, 0=très incertain) pour chaque champ. Ne devine jamais un chiffre.`;
@@ -775,9 +946,9 @@ async function analyzeScreenshots(){
       {type:'image_url',image_url:{url:'data:image/jpeg;base64,'+b2c}}
     ];
 // Références héros non envoyées à Groq (limite 5 images, 2 captures suffisent)
-    const response=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+    const response=await fetch('https://mlbb-proxy.yinhosan.workers.dev/',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer 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'},
+      headers:{'Content-Type':'application/json'},
       body:JSON.stringify({model:'meta-llama/llama-4-scout-17b-16e-instruct',max_tokens:1000,response_format:{type:'json_object'},messages:[{role:'user',content:groqContent}]})
     });
     if(!response.ok){const err=await response.json().catch(()=>({}));throw new Error(err.error?.message||response.status);}
@@ -990,11 +1161,10 @@ document.getElementById('manualBtn').addEventListener('click',()=>{editingId=nul
 document.getElementById('exportBtn').addEventListener('click',exportCSV);
 document.getElementById('importBtn').addEventListener('click',showImportPanel);
 document.getElementById('resetBtn').addEventListener('click',()=>{if(!confirm('Supprimer toutes les parties ? Action irréversible.'))return;matches=[];persist();renderAll();});
-document.getElementById('refsBtn').addEventListener('click',()=>{const c=document.getElementById('refsPanelContainer');if(c.innerHTML.trim()==='')renderRefsPanel();else c.innerHTML='';});
 setupSlot(document.getElementById('slot1'),document.getElementById('file1'),1);
 setupSlot(document.getElementById('slot2'),document.getElementById('file2'),2);
 
-loadHeroRefs();loadMatches();
+loadMatches();
 </script>
 </body>
 </html>
