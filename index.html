@@ -287,23 +287,9 @@ svg.chart{width:100%;overflow:visible;}
       </div>
       <div style="font-size:10px;color:var(--muted);margin-top:6px;text-align:center;" id="heroTableScrollHint"></div>
     </div>
-    <div class="charts-grid">
-      <div class="chart-panel">
-        <h2>Winrate par héros</h2>
-        <div id="wrByHero"></div>
-      </div>
-      <div class="chart-panel">
-        <h2>Winrate glissant (20 parties)</h2>
-        <svg class="chart" id="rollingWRChart" height="120"></svg>
-      </div>
-      <div class="chart-panel">
-        <h2>KDA moyen par héros</h2>
-        <div id="kdaByHero"></div>
-      </div>
-      <div class="chart-panel">
-        <h2>Or / minute moyen par héros</h2>
-        <div id="gpmByHero"></div>
-      </div>
+    <div class="panel" style="margin-bottom:20px;">
+      <h2>Winrate glissant (20 parties)</h2>
+      <svg class="chart" id="rollingWRChart" height="180" style="width:100%;overflow:visible;"></svg>
     </div>
 
   </div>
@@ -643,9 +629,6 @@ function renderAnalytics(){
   renderCorrelation();
   renderWRByDuration();
   renderHeroPerformanceTable();
-  renderWRByHero();
-  renderKDAByHero();
-  renderGPMByHero();
   renderRollingWRChart();
   renderWRByLane();
 }
@@ -661,42 +644,40 @@ function renderBarChart(containerId,items){
     </div>`).join('');
 }
 
-function renderWRByHero(){
-  const hs=heroStats();
-  const items=Object.entries(hs).map(([name,s])=>({name,value:Math.round(s.wins/s.total*100),pct:s.wins/s.total*100,color:heroColor(name),label:`${s.wins}V/${s.total-s.wins}D`})).sort((a,b)=>b.value-a.value);
-  renderBarChart('wrByHero',items);
-}
-function renderKDAByHero(){
-  const hs=heroStats();
-  const items=Object.entries(hs).filter(([,s])=>s.kdas.length).map(([name,s])=>({name,value:avg(s.kdas),pct:Math.min(avg(s.kdas)/5*100,100),color:heroColor(name)})).sort((a,b)=>b.value-a.value);
-  renderBarChart('kdaByHero',items);
-}
-function renderGPMByHero(){
-  const hs=heroStats();
-  const items=Object.entries(hs).filter(([,s])=>s.golds.length).map(([name,s])=>({name,value:Math.round(avg(s.golds)),pct:Math.min(avg(s.golds)/1200*100,100),color:heroColor(name)})).sort((a,b)=>b.value-a.value);
-  renderBarChart('gpmByHero',items);
-}
-
 function renderRollingWRChart(){
   const svg=document.getElementById('rollingWRChart');
-  if(matches.length<5){svg.innerHTML='<text x="50%" y="50%" fill="#8D9099" text-anchor="middle" font-size="12">Pas assez de données (min 5 matchs)</text>';return;}
-  const window_size=Math.min(20,matches.length);
+  if(!svg)return;
+  const sortedM=[...matches].sort((a,b)=>(a.idx??0)-(b.idx??0));
+  if(sortedM.length<5){svg.innerHTML='<text x="50%" y="50%" fill="#8D9099" text-anchor="middle" font-size="12">Pas assez de données (min 5 matchs)</text>';return;}
+  const wSize=Math.min(20,sortedM.length);
   const pts=[];
-  for(let i=window_size-1;i<matches.length;i++){
-    const slice=matches.slice(i-window_size+1,i+1);
+  for(let i=wSize-1;i<sortedM.length;i++){
+    const slice=sortedM.slice(i-wSize+1,i+1);
     pts.push(Math.round(slice.filter(m=>m.resultat==='Victoire').length/slice.length*100));
   }
-  const w=500,h=120,pad=20;
-  const sx=(w-pad*2)/(pts.length-1||1);
-  const coords=pts.map((v,i)=>[pad+i*sx,h-pad-(v/100)*(h-pad*2)]);
-  const path=coords.map((c,i)=>(i===0?'M':'L')+c[0].toFixed(1)+','+c[1].toFixed(1)).join(' ');
-  const midY=h-pad-(50/100)*(h-pad*2);
-  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
-  svg.innerHTML=`
-    <line x1="${pad}" y1="${midY.toFixed(1)}" x2="${w-pad}" y2="${midY.toFixed(1)}" stroke="#272B36" stroke-width="1" stroke-dasharray="4"/>
-    <text x="${pad-4}" y="${midY+4}" fill="#8D9099" font-size="9" text-anchor="end">50%</text>
-    <path d="${path}" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    ${coords.map(([cx,cy],i)=>`<circle cx="${cx}" cy="${cy}" r="3" fill="${pts[i]>=50?'var(--gold)':'var(--crimson)'}"/>`).join('')}`;
+  const W=500,H=180,padL=36,padR=10,padT=16,padB=24;
+  const minY=Math.max(0,Math.min(...pts)-10);
+  const maxY=Math.min(100,Math.max(...pts)+10);
+  const rangeY=(maxY-minY)||1;
+  const sx=(W-padL-padR)/(pts.length-1||1);
+  const sy=(H-padT-padB)/rangeY;
+  const cx=(i)=>padL+i*sx;
+  const cy=(v)=>H-padB-(v-minY)*sy;
+  const midY=cy(50);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  let out='';
+  [minY,50,maxY].filter((v,i,a)=>a.indexOf(v)===i&&v>=minY&&v<=maxY).forEach(v=>{
+    const y=cy(v).toFixed(1);
+    out+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#272B36" stroke-width="1" stroke-dasharray="3"/>`;
+    out+=`<text x="${padL-4}" y="${parseFloat(y)+4}" fill="#8D9099" font-size="9" text-anchor="end">${v}%</text>`;
+  });
+  const path=pts.map((v,i)=>(i===0?'M':'L')+cx(i).toFixed(1)+','+cy(v).toFixed(1)).join(' ');
+  const area='M'+cx(0).toFixed(1)+','+cy(minY).toFixed(1)+' '+pts.map((v,i)=>'L'+cx(i).toFixed(1)+','+cy(v).toFixed(1)).join(' ')+' L'+cx(pts.length-1).toFixed(1)+','+cy(minY).toFixed(1)+' Z';
+  out+=`<defs><linearGradient id="wrGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--gold)" stop-opacity="0.3"/><stop offset="100%" stop-color="var(--gold)" stop-opacity="0.02"/></linearGradient></defs>`;
+  out+=`<path d="${area}" fill="url(#wrGrad)"/>`;
+  out+=`<line x1="${padL}" y1="${midY.toFixed(1)}" x2="${W-padR}" y2="${midY.toFixed(1)}" stroke="#D9A53D" stroke-width="1" stroke-dasharray="4" opacity="0.5"/>`;
+  out+=`<path d="${path}" fill="none" stroke="var(--gold)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  svg.innerHTML=out;
 }
 
 function renderWRByLane(){
