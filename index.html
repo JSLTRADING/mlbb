@@ -289,8 +289,20 @@ svg.chart{width:100%;overflow:visible;}
     </div>
     <div class="charts-grid">
       <div class="chart-panel">
+        <h2>Winrate par héros</h2>
+        <div id="wrByHero"></div>
+      </div>
+      <div class="chart-panel">
         <h2>Winrate glissant (20 parties)</h2>
-<svg class="chart" id="rollingWRChart" height="180" style="width:100%;overflow:visible;"></svg>
+        <svg class="chart" id="rollingWRChart" height="120"></svg>
+      </div>
+      <div class="chart-panel">
+        <h2>KDA moyen par héros</h2>
+        <div id="kdaByHero"></div>
+      </div>
+      <div class="chart-panel">
+        <h2>Or / minute moyen par héros</h2>
+        <div id="gpmByHero"></div>
       </div>
     </div>
 
@@ -627,52 +639,13 @@ function renderHeroPerformanceTable(){
   });
 }
 
-
-function renderRollingWRChart(){
-  const variant=1;
-  const svg=document.getElementById('rollingWRChart');
-  if(!svg)return;
-  const sortedM=[...matches].sort((a,b)=>(a.idx??0)-(b.idx??0));
-  if(sortedM.length<5){svg.innerHTML='<text x="50%" y="50%" fill="#8D9099" text-anchor="middle" font-size="12">Pas assez de données (min 5 matchs)</text>';return;}
-  const wSize=Math.min(20,sortedM.length);
-  const pts=[];
-  for(let i=wSize-1;i<sortedM.length;i++){
-    const slice=sortedM.slice(i-wSize+1,i+1);
-    pts.push(Math.round(slice.filter(m=>m.resultat==='Victoire').length/slice.length*100));
-  }
-  const W=500,H=180,padL=36,padR=10,padT=16,padB=24;
-  const minY=Math.max(0,Math.min(...pts)-10);
-  const maxY=Math.min(100,Math.max(...pts)+10);
-  const rangeY=(maxY-minY)||1;
-  const sx=(W-padL-padR)/(pts.length-1||1);
-  const sy=(H-padT-padB)/rangeY;
-  const cx=(i)=>padL+i*sx;
-  const cy=(v)=>H-padB-(v-minY)*sy;
-  const midY=cy(50);
-  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-
-  // Grid lines
-  let out='';
-  [minY,50,maxY].filter((v,i,a)=>a.indexOf(v)===i&&v>=minY&&v<=maxY).forEach(v=>{
-    const y=cy(v).toFixed(1);
-    out+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#272B36" stroke-width="1" stroke-dasharray="3"/>`;
-    out+=`<text x="${padL-4}" y="${parseFloat(y)+4}" fill="#8D9099" font-size="9" text-anchor="end">${v}%</text>`;
-  });
-
-  const path=pts.map((v,i)=>(i===0?'M':'L')+cx(i).toFixed(1)+','+cy(v).toFixed(1)).join(' ');
-
-  // Zone remplie sous la courbe
-  const area='M'+cx(0).toFixed(1)+','+cy(minY).toFixed(1)+' '+pts.map((v,i)=>'L'+cx(i).toFixed(1)+','+cy(v).toFixed(1)).join(' ')+' L'+cx(pts.length-1).toFixed(1)+','+cy(minY).toFixed(1)+' Z';
-    out+=`<defs><linearGradient id="wrGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--gold)" stop-opacity="0.3"/><stop offset="100%" stop-color="var(--gold)" stop-opacity="0.02"/></linearGradient></defs>`;
-    out+=`<path d="${area}" fill="url(#wrGrad)"/>`;
-    out+=`<line x1="${padL}" y1="${midY.toFixed(1)}" x2="${W-padR}" y2="${midY.toFixed(1)}" stroke="#D9A53D" stroke-width="1" stroke-dasharray="4" opacity="0.5"/>`;
-  out+=`<path d="${path}" fill="none" stroke="var(--gold)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-  svg.innerHTML=out;
-}
 function renderAnalytics(){
   renderCorrelation();
   renderWRByDuration();
   renderHeroPerformanceTable();
+  renderWRByHero();
+  renderKDAByHero();
+  renderGPMByHero();
   renderRollingWRChart();
   renderWRByLane();
 }
@@ -688,6 +661,132 @@ function renderBarChart(containerId,items){
     </div>`).join('');
 }
 
+function renderWRByHero(){
+  const hs=heroStats();
+  const items=Object.entries(hs).map(([name,s])=>({name,value:Math.round(s.wins/s.total*100),pct:s.wins/s.total*100,color:heroColor(name),label:`${s.wins}V/${s.total-s.wins}D`})).sort((a,b)=>b.value-a.value);
+  renderBarChart('wrByHero',items);
+}
+function renderKDAByHero(){
+  const hs=heroStats();
+  const items=Object.entries(hs).filter(([,s])=>s.kdas.length).map(([name,s])=>({name,value:avg(s.kdas),pct:Math.min(avg(s.kdas)/5*100,100),color:heroColor(name)})).sort((a,b)=>b.value-a.value);
+  renderBarChart('kdaByHero',items);
+}
+function renderGPMByHero(){
+  const hs=heroStats();
+  const items=Object.entries(hs).filter(([,s])=>s.golds.length).map(([name,s])=>({name,value:Math.round(avg(s.golds)),pct:Math.min(avg(s.golds)/1200*100,100),color:heroColor(name)})).sort((a,b)=>b.value-a.value);
+  renderBarChart('gpmByHero',items);
+}
+
+function renderRollingWRChart(){
+  const svg=document.getElementById('rollingWRChart');
+  if(matches.length<5){svg.innerHTML='<text x="50%" y="50%" fill="#8D9099" text-anchor="middle" font-size="12">Pas assez de données (min 5 matchs)</text>';return;}
+  const window_size=Math.min(20,matches.length);
+  const pts=[];
+  for(let i=window_size-1;i<matches.length;i++){
+    const slice=matches.slice(i-window_size+1,i+1);
+    pts.push(Math.round(slice.filter(m=>m.resultat==='Victoire').length/slice.length*100));
+  }
+  const w=500,h=120,pad=20;
+  const sx=(w-pad*2)/(pts.length-1||1);
+  const coords=pts.map((v,i)=>[pad+i*sx,h-pad-(v/100)*(h-pad*2)]);
+  const path=coords.map((c,i)=>(i===0?'M':'L')+c[0].toFixed(1)+','+c[1].toFixed(1)).join(' ');
+  const midY=h-pad-(50/100)*(h-pad*2);
+  svg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+  svg.innerHTML=`
+    <line x1="${pad}" y1="${midY.toFixed(1)}" x2="${w-pad}" y2="${midY.toFixed(1)}" stroke="#272B36" stroke-width="1" stroke-dasharray="4"/>
+    <text x="${pad-4}" y="${midY+4}" fill="#8D9099" font-size="9" text-anchor="end">50%</text>
+    <path d="${path}" fill="none" stroke="var(--gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    ${coords.map(([cx,cy],i)=>`<circle cx="${cx}" cy="${cy}" r="3" fill="${pts[i]>=50?'var(--gold)':'var(--crimson)'}"/>`).join('')}`;
+}
+
+function renderWRByLane(){
+  const el=document.getElementById('wrByLane');
+  const lanes=['Gold','Exp','Mid','Jungle','Roam'];
+  const map={};
+  matches.forEach(m=>{
+    const l=m.role;if(!l||!lanes.includes(l))return;
+    if(!map[l])map[l]={w:0,t:0};
+    map[l].t++;if(m.resultat==='Victoire')map[l].w++;
+  });
+  const items=lanes.filter(l=>map[l]).map(l=>({
+    name:l,
+    value:Math.round(map[l].w/map[l].t*100),
+    pct:map[l].w/map[l].t*100,
+    label:`${map[l].w}V/${map[l].t-map[l].w}D`,
+    color:heroColor(l)
+  })).sort((a,b)=>b.value-a.value);
+  if(!items.length){el.innerHTML='<div class="empty-state">Aucune lane enregistrée.<br>Renseigne la lane dans le formulaire de saisie.</div>';return;}
+  el.innerHTML=items.map(({name,value,pct,label,color})=>`
+    <div class="wr-bar-row">
+      <div class="wr-bar-name"><span class="dot" style="background:${color}"></span>${name}</div>
+      <div class="wr-bar-bg"><div class="wr-bar-fill${value<50?' low':''}" style="width:${Math.min(pct,100)}%"></div></div>
+      <div style="font-size:11px;font-family:'JetBrains Mono',monospace;min-width:60px;text-align:right;color:${value>=50?'var(--gold)':'var(--crimson)'};">${value}% <span style="color:var(--muted);font-size:10px;">${label}</span></div>
+    </div>`).join('');
+}
+
+
+
+// ─── HERO CARDS ───
+function renderHeroCards(){
+  const hs=heroStats();
+  const el=document.getElementById('heroCards');
+  const entries=Object.entries(hs);
+  if(!entries.length){el.innerHTML='<div class="empty-state" style="padding:36px;">Aucune partie enregistrée.</div>';return;}
+  el.innerHTML=entries.sort((a,b)=>b[1].total-a[1].total).map(([name,s])=>{
+    const wr=Math.round(s.wins/s.total*100);
+    const kdaAvg=avg(s.kdas);
+    const gpmAvg=avg(s.golds);
+    const scoreAvg=avg(s.scores);
+    const dmgAvg=avg(s.dmgs);
+    const partAvg=avg(s.parts);
+    // radar SVG (kills contrib, deaths inverse, assists, damage, teamfight)
+    const radarData=[
+      {label:'KDA',v:kdaAvg!=null?Math.min(kdaAvg/5,1):0},
+      {label:'Winrate',v:wr/100},
+      {label:'Score',v:scoreAvg!=null?Math.min(scoreAvg/15,1):0},
+      {label:'Dégâts',v:dmgAvg!=null?Math.min(dmgAvg/60000,1):0},
+      {label:'TF%',v:partAvg!=null?partAvg/100:0}
+    ];
+    const radarSVG=buildRadar(radarData,name);
+    return`<div class="hero-card">
+      <div class="hero-card-header">
+        <div class="hero-card-name"><span class="dot" style="background:${heroColor(name)};width:10px;height:10px;"></span>${name}</div>
+        <div class="hero-winrate ${wr>=50?'good':'bad'}">${wr}%</div>
+      </div>
+      <div class="radar-wrap">${radarSVG}</div>
+      <div class="hero-stat-row"><span class="lbl">Parties</span><span class="val">${s.wins}V / ${s.total-s.wins}D (${s.total})</span></div>
+      <div class="hero-stat-row"><span class="lbl">KDA moyen</span><span class="val">${kdaAvg!=null?kdaAvg.toFixed(2):'—'}</span></div>
+      <div class="hero-stat-row"><span class="lbl">Or / min</span><span class="val">${gpmAvg!=null?Math.round(gpmAvg)+'g/min':'—'}</span></div>
+      <div class="hero-stat-row"><span class="lbl">Score perf. moy.</span><span class="val">${scoreAvg!=null?scoreAvg.toFixed(1):'—'}</span></div>
+      <div class="hero-stat-row"><span class="lbl">Dégâts moy.</span><span class="val">${dmgAvg!=null?Math.round(dmgAvg).toLocaleString():'—'}</span></div>
+      <div class="hero-stat-row"><span class="lbl">Participation TF</span><span class="val">${partAvg!=null?Math.round(partAvg)+'%':'—'}</span></div>
+    </div>`;
+  }).join('');
+}
+
+function buildRadar(data,name){
+  const cx=80,cy=80,r=60,n=data.length;
+  const angle=i=>-Math.PI/2+(2*Math.PI/n)*i;
+  const pt=(i,v)=>[cx+Math.cos(angle(i))*r*v,cy+Math.sin(angle(i))*r*v];
+  const grid=[0.25,0.5,0.75,1].map(g=>`<polygon points="${data.map((_,i)=>pt(i,g).join(',')).join(' ')}" fill="none" stroke="var(--line)" stroke-width="1"/>`).join('');
+  const shape=`<polygon points="${data.map((_,i)=>pt(i,data[i].v).join(',')).join(' ')}" fill="${heroColor(name).replace(')',',0.25)').replace('hsl','hsla')}" stroke="${heroColor(name)}" stroke-width="1.5"/>`;
+  const labels=data.map((d,i)=>{const[x,y]=pt(i,1.2);return`<text x="${x}" y="${y}" fill="var(--muted)" font-size="9" text-anchor="middle" dominant-baseline="middle">${d.label}</text>`;}).join('');
+  return`<svg width="160" height="160" viewBox="0 0 160 160">${grid}${shape}${labels}</svg>`;
+}
+
+// ─── TABLE ───
+function getFilteredMatches(){
+  const fHero=document.getElementById('fHero').value;
+  const fRes=document.getElementById('fResult').value;
+  const fLane=document.getElementById('fLane').value;
+  const fPeriod=document.getElementById('fPeriod').value;
+  let list=[...matches];
+  if(fHero)list=list.filter(m=>m.heroe===fHero);
+  if(fRes)list=list.filter(m=>m.resultat===fRes);
+  if(fLane)list=list.filter(m=>m.role===fLane);
+  if(fPeriod){const cutoff=new Date();cutoff.setDate(cutoff.getDate()-+fPeriod);list=list.filter(m=>m.date&&new Date(m.date)>=cutoff);}
+  return list;
+}
 function renderTable(){
   // update hero filter options
   const heroes=[...new Set(matches.map(m=>m.heroe).filter(Boolean))];
