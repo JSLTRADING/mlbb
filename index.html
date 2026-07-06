@@ -191,6 +191,18 @@ svg.chart{width:100%;overflow:visible;}
 .hero-perf-table tr:hover{background:var(--surface-2);}.hero-perf-table tr:hover td:first-child{background:var(--surface-2);}
 .hero-perf-table tr:last-child td{border-bottom:none;}
 .wr-pill{display:inline-block;padding:2px 7px;border-radius:4px;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:12px;}
+
+.hist-table{border-collapse:separate;border-spacing:0;}
+.hist-table th:nth-child(1){position:sticky;left:0;z-index:3;background:#14161D;border-right:none;}
+.hist-table th:nth-child(2){position:sticky;left:0;z-index:3;background:#14161D;box-shadow:3px 0 8px rgba(0,0,0,.4);}
+.hist-table td:nth-child(1){position:sticky;left:0;z-index:2;background:#14161D;border-right:none;}
+.hist-table td:nth-child(2){position:sticky;left:0;z-index:2;background:#14161D;box-shadow:3px 0 8px rgba(0,0,0,.4);}
+.hist-table tr.victoire td:nth-child(1),.hist-table tr.victoire td:nth-child(2){background:#14161D;}
+.hist-table tr.defaite td:nth-child(1),.hist-table tr.defaite td:nth-child(2){background:#14161D;}
+.hist-table tr:hover td:nth-child(1),.hist-table tr:hover td:nth-child(2){background:var(--surface-2);}
+
+.hist-table td:nth-child(1),.hist-table th:nth-child(1){border-right:none !important;}
+.hist-table td:nth-child(2),.hist-table th:nth-child(2){border-left:none !important;}
 </style>
 </head>
 <body>
@@ -312,7 +324,7 @@ svg.chart{width:100%;overflow:visible;}
         <select class="filter-select" id="fPeriod"><option value="">Toute période</option><option value="7">7 derniers jours</option><option value="30">30 derniers jours</option></select>
         <button class="btn-ghost" id="clearFilters">Effacer</button>
       </div>
-      <div id="tableContainer"></div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><div id="tableContainer"></div></div>
     </div>
   </div>
 </div>
@@ -815,7 +827,7 @@ function renderTable(){
     </tr>`;
   }).join('');
   const th=(col,label)=>`<th class="${sortCol===col?'sorted':''}" data-col="${col}">${label}${arrow(col)}</th>`;
-  container.innerHTML=`<table>
+  container.innerHTML=`<table class="hist-table">
     <thead><tr>
       ${th('date','Date')}${th('heroe','Héros')}${th('role','Lane')}${th('resultat','Résultat')}
       <th>K/D/A</th><th>Ratio</th><th>Or/min</th>${th('score_performance','Score')}
@@ -829,6 +841,18 @@ function renderTable(){
       renderTable();
     });
   });
+
+  // Fix sticky column 2 offset dynamically
+  {
+    const stickyTbl = container.querySelector('.hist-table');
+    if(stickyTbl){
+      const stickyCol1 = stickyTbl.querySelector('th:nth-child(1)');
+      if(stickyCol1){
+        const stickyW = stickyCol1.offsetWidth;
+        stickyTbl.querySelectorAll('th:nth-child(2), td:nth-child(2)').forEach(el=>{el.style.left=stickyW+'px';});
+      }
+    }
+  }
   container.addEventListener('click',e=>{
     const btn=e.target.closest('button[data-action]');
     if(!btn)return;
@@ -846,6 +870,7 @@ function renderAll(){
 }
 
 function deleteMatch(id){
+  if(!confirm('Supprimer cette partie ? Cette action est irréversible.'))return;
   matches=matches.filter(m=>String(m.id)!==String(id));
   persist();
   deleteFromSupabase(id);
