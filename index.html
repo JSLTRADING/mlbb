@@ -203,7 +203,6 @@ svg.chart{width:100%;overflow:visible;}
 
 .hist-table td:nth-child(1),.hist-table th:nth-child(1){border-right:none !important;}
 .hist-table td:nth-child(2),.hist-table th:nth-child(2){border-left:none !important;}
-.wr-variant-btn.active{color:var(--gold);border-color:var(--gold);}
 </style>
 </head>
 <body>
@@ -291,12 +290,7 @@ svg.chart{width:100%;overflow:visible;}
     <div class="charts-grid">
       <div class="chart-panel">
         <h2>Winrate glissant (20 parties)</h2>
-        <div style="display:flex;gap:8px;margin-bottom:10px;">
-          <button class="btn-ghost wr-variant-btn active" data-variant="1">Ligne + zone</button>
-          <button class="btn-ghost wr-variant-btn" data-variant="2">Ligne épurée</button>
-          <button class="btn-ghost wr-variant-btn" data-variant="3">Barres</button>
-        </div>
-        <svg class="chart" id="rollingWRChart" height="180" style="width:100%;overflow:visible;"></svg>
+<svg class="chart" id="rollingWRChart" height="180" style="width:100%;overflow:visible;"></svg>
       </div>
     </div>
 
@@ -634,9 +628,8 @@ function renderHeroPerformanceTable(){
 }
 
 
-function renderRollingWRChart(variant){
-  variant = variant || window._wrVariant || 1;
-  window._wrVariant = variant;
+function renderRollingWRChart(){
+  const variant=1;
   const svg=document.getElementById('rollingWRChart');
   if(!svg)return;
   const sortedM=[...matches].sort((a,b)=>(a.idx??0)-(b.idx??0));
@@ -668,41 +661,13 @@ function renderRollingWRChart(variant){
 
   const path=pts.map((v,i)=>(i===0?'M':'L')+cx(i).toFixed(1)+','+cy(v).toFixed(1)).join(' ');
 
-  if(variant===1){
-    // Zone remplie sous la courbe
-    const area='M'+cx(0).toFixed(1)+','+cy(minY).toFixed(1)+' '+pts.map((v,i)=>'L'+cx(i).toFixed(1)+','+cy(v).toFixed(1)).join(' ')+' L'+cx(pts.length-1).toFixed(1)+','+cy(minY).toFixed(1)+' Z';
+  // Zone remplie sous la courbe
+  const area='M'+cx(0).toFixed(1)+','+cy(minY).toFixed(1)+' '+pts.map((v,i)=>'L'+cx(i).toFixed(1)+','+cy(v).toFixed(1)).join(' ')+' L'+cx(pts.length-1).toFixed(1)+','+cy(minY).toFixed(1)+' Z';
     out+=`<defs><linearGradient id="wrGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--gold)" stop-opacity="0.3"/><stop offset="100%" stop-color="var(--gold)" stop-opacity="0.02"/></linearGradient></defs>`;
     out+=`<path d="${area}" fill="url(#wrGrad)"/>`;
     out+=`<line x1="${padL}" y1="${midY.toFixed(1)}" x2="${W-padR}" y2="${midY.toFixed(1)}" stroke="#D9A53D" stroke-width="1" stroke-dasharray="4" opacity="0.5"/>`;
-    out+=`<path d="${path}" fill="none" stroke="var(--gold)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-  } else if(variant===2){
-    // Ligne épurée, couleur selon 50%
-    out+=`<line x1="${padL}" y1="${midY.toFixed(1)}" x2="${W-padR}" y2="${midY.toFixed(1)}" stroke="#272B36" stroke-width="1" stroke-dasharray="4"/>`;
-    // Split path by above/below 50
-    pts.forEach((v,i)=>{
-      if(i===0)return;
-      const col=pts[i-1]>=50&&v>=50?'var(--gold)':pts[i-1]<50&&v<50?'var(--crimson)':'var(--muted)';
-      out+=`<line x1="${cx(i-1).toFixed(1)}" y1="${cy(pts[i-1]).toFixed(1)}" x2="${cx(i).toFixed(1)}" y2="${cy(v).toFixed(1)}" stroke="${col}" stroke-width="2.5" stroke-linecap="round"/>`;
-    });
-  } else {
-    // Barres
-    const bw=Math.max(2,(W-padL-padR)/pts.length-2);
-    out+=`<line x1="${padL}" y1="${midY.toFixed(1)}" x2="${W-padR}" y2="${midY.toFixed(1)}" stroke="#272B36" stroke-width="1" stroke-dasharray="4"/>`;
-    pts.forEach((v,i)=>{
-      const col=v>=50?'var(--gold)':'var(--crimson)';
-      const bh=Math.abs(cy(v)-cy(50));
-      const by=v>=50?cy(v):cy(50);
-      out+=`<rect x="${(cx(i)-bw/2).toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${col}" opacity="0.8" rx="1"/>`;
-    });
-  }
-
+  out+=`<path d="${path}" fill="none" stroke="var(--gold)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
   svg.innerHTML=out;
-
-  // Wire variant buttons
-  document.querySelectorAll('.wr-variant-btn').forEach(btn=>{
-    btn.classList.toggle('active', +btn.dataset.variant===variant);
-    btn.onclick=()=>renderRollingWRChart(+btn.dataset.variant);
-  });
 }
 function renderAnalytics(){
   renderCorrelation();
