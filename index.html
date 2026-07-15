@@ -1009,7 +1009,13 @@ function showEditPanel(data,fromAnalysis){
       <div class="field"><label>Date</label><input type="date" id="f_date" value="${data.date||today}"></div>
       <div class="field"><label>Héros</label>
         <select id="f_heroe" class="${!isKnownHero&&heroVal?'ai-null':''}">
-          ${KNOWN_HEROES.map(h=>`<option value="${h}"${heroVal===h?' selected':''}>${h}</option>`).join('')}
+          ${(()=>{
+            // Héros joués triés par nombre de parties
+            const heroCount={};
+            matches.forEach(m=>{if(m.heroe)heroCount[m.heroe]=(heroCount[m.heroe]||0)+1;});
+            const allHeroes=Object.keys(heroCount).sort((a,b)=>heroCount[b]-heroCount[a]);
+            return allHeroes.map(h=>`<option value="${h}"${heroVal===h?' selected':''}>${h} (${heroCount[h]}p)</option>`).join('');
+          })()}
           <option value="__autre"${!isKnownHero?' selected':''}>Autre…</option>
         </select>
       </div>
