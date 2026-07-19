@@ -962,6 +962,7 @@ async function analyzeScreenshots(){
     });
     if(!response.ok){const err=await response.json().catch(()=>({}));throw new Error(err.error?.message||response.status);}
     const data=await response.json();
+    console.log('Groq full response:', JSON.stringify(data));
     const textBlocks=(data.choices||[]).map(c=>c.message?.content||'').join('\n');
     const cleaned=textBlocks.replace(/```json|```/g,'').trim();
     if(!cleaned){throw new Error('Réponse vide du modèle. Réessaie ou saisis manuellement.');}
