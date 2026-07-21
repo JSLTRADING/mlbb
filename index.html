@@ -307,6 +307,7 @@ svg.chart{width:100%;overflow:visible;}
         <select class="filter-select" id="fHero"><option value="">Tous les héros</option></select>
         <select class="filter-select" id="fResult"><option value="">Tous résultats</option><option value="Victoire">Victoires</option><option value="Defaite">Défaites</option></select>
         <select class="filter-select" id="fLane"><option value="">Toutes lanes</option><option value="Gold">Gold</option><option value="Exp">Exp</option><option value="Mid">Mid</option><option value="Jungle">Jungle</option><option value="Roam">Roam</option></select>
+        <select class="filter-select" id="fMode"><option value="">Tous modes</option><option value="Solo">Solo</option><option value="Duo">Duo</option><option value="Trio">Trio</option></select>
         <select class="filter-select" id="fPeriod"><option value="">Toute période</option><option value="7">7 derniers jours</option><option value="30">30 derniers jours</option></select>
         <button class="btn-ghost" id="clearFilters">Effacer</button>
       </div>
@@ -342,7 +343,7 @@ async function loadMatches(){
       const data=await r.json();
       matches=data.map(row=>({
         id:row.id, idx:row.idx, date:row.date, heroe:row.heroe, role:row.role,
-        resultat:row.resultat, kills:row.kills, deaths:row.deaths, assists:row.assists,
+        mode_jeu:row.mode_jeu||'Solo', resultat:row.resultat, kills:row.kills, deaths:row.deaths, assists:row.assists,
         or:row.or_gold, score_performance:row.score_performance,
         degats_infliges:row.degats_infliges, degats_tourelle:row.degats_tourelle,
         degats_subis:row.degats_subis, participation_teamfight:row.participation_teamfight,
@@ -370,7 +371,7 @@ async function persist(){
     const rows=matches.map(m=>({
       id:String(m.id), date:m.date||null, heroe:m.heroe||null, role:m.role||null,
       resultat:m.resultat||null, kills:m.kills??null, deaths:m.deaths??null, assists:m.assists??null,
-      idx:m.idx??null, or_gold:m.or??null, score_performance:m.score_performance??null,
+      idx:m.idx??null, mode_jeu:m.mode_jeu||'Solo', or_gold:m.or??null, score_performance:m.score_performance??null,
       degats_infliges:m.degats_infliges??null, degats_tourelle:m.degats_tourelle??null,
       degats_subis:m.degats_subis??null, participation_teamfight:m.participation_teamfight??null,
       mvp:m.mvp||null, duree_partie:m.duree_partie||null
@@ -769,7 +770,9 @@ function getFilteredMatches(){
   let list=[...matches];
   if(fHero)list=list.filter(m=>m.heroe===fHero);
   if(fRes)list=list.filter(m=>m.resultat===fRes);
+  const fMode=document.getElementById('fMode').value;
   if(fLane)list=list.filter(m=>m.role===fLane);
+  if(fMode)list=list.filter(m=>(m.mode_jeu||'Solo')===fMode);
   if(fPeriod){const cutoff=new Date();cutoff.setDate(cutoff.getDate()-+fPeriod);list=list.filter(m=>m.date&&new Date(m.date)>=cutoff);}
   return list;
 }
@@ -803,6 +806,7 @@ function renderTable(){
       <td class="result-cell">${m.date||'—'}</td>
       <td class="hero-cell"><span class="dot" style="background:${heroColor(m.heroe)}"></span>${m.heroe||'—'}</td>
       <td>${m.role||'—'}</td>
+      <td>${m.mode_jeu||'Solo'}</td>
       <td>${m.resultat==='Victoire'?'✓ Victoire':'✗ Défaite'}</td>
       <td>${kda}</td><td>${ratio}</td>
       <td>${gpm!=null?gpm+'g/m':'—'}</td>
@@ -815,7 +819,7 @@ function renderTable(){
   const th=(col,label)=>`<th class="${sortCol===col?'sorted':''}" data-col="${col}">${label}${arrow(col)}</th>`;
   container.innerHTML=`<table class="hist-table">
     <thead><tr>
-      ${th('date','Date')}${th('heroe','Héros')}${th('role','Lane')}${th('resultat','Résultat')}
+      ${th('date','Date')}${th('heroe','Héros')}${th('role','Lane')}${th('mode_jeu','Mode')}${th('resultat','Résultat')}
       <th>K/D/A</th><th>Ratio</th><th>Or/min</th>${th('score_performance','Score')}
       ${th('degats_infliges','Dégâts')}${th('participation_teamfight','TF%')}
       <th>MVP</th><th></th>
@@ -1031,6 +1035,13 @@ function showEditPanel(data,fromAnalysis){
           ${['Gold','Exp','Mid','Jungle','Roam'].map(l=>`<option value="${l}"${data.role===l?' selected':''}>${l}</option>`).join('')}
         </select>
       </div>
+      <div class="field"><label>Mode</label>
+        <select id="f_mode_jeu">
+          <option value="Solo"${(data.mode_jeu||'Solo')==='Solo'?' selected':''}>Solo</option>
+          <option value="Duo"${data.mode_jeu==='Duo'?' selected':''}>Duo</option>
+          <option value="Trio"${data.mode_jeu==='Trio'?' selected':''}>Trio</option>
+        </select>
+      </div>
       <div class="field"><label>Kills</label><input type="number" id="f_kills" class="${fClass('kills',data.kills)}" value="${data.kills??''}"></div>
       <div class="field"><label>Deaths</label><input type="number" id="f_deaths" class="${fClass('deaths',data.deaths)}" value="${data.deaths??''}"></div>
       <div class="field"><label>Assists</label><input type="number" id="f_assists" class="${fClass('assists',data.assists)}" value="${data.assists??''}"></div>
@@ -1089,6 +1100,7 @@ function showEditPanel(data,fromAnalysis){
       date:document.getElementById('f_date').value,
       heroe:heroFinal||null,
       role:document.getElementById('f_role').value||null,
+      mode_jeu:document.getElementById('f_mode_jeu').value||'Solo',
       resultat:selectedResult,
       kills:num('f_kills'),deaths:num('f_deaths'),assists:num('f_assists'),
       or:num('f_or'),score_performance:num('f_score'),
@@ -1168,9 +1180,9 @@ function switchTab(id){
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
 
 // ─── FILTERS ───
-['fHero','fResult','fLane','fPeriod'].forEach(id=>document.getElementById(id).addEventListener('change',renderTable));
+['fHero','fResult','fLane','fMode','fPeriod'].forEach(id=>document.getElementById(id).addEventListener('change',renderTable));
 document.getElementById('clearFilters').addEventListener('click',()=>{
-  ['fHero','fResult','fLane','fPeriod'].forEach(id=>{document.getElementById(id).value='';});renderTable();
+  ['fHero','fResult','fLane','fMode','fPeriod'].forEach(id=>{document.getElementById(id).value='';});renderTable();
 });
 
 // ─── EVENTS ───
