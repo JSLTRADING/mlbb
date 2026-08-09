@@ -213,6 +213,7 @@ svg.chart{width:100%;overflow:visible;}
       <h1>Suivi Ranked — MLBB</h1>
       <p>Analyses extraites par IA depuis tes captures de fin de partie &nbsp;·&nbsp; <span id="syncStatus" style="color:var(--muted);">⏳ Chargement…</span></p>
     </div>
+    <div id="saisonSelector" style="display:flex;gap:8px;align-items:center;"></div>
     <div class="top-actions">
 <button class="btn-ghost" id="importBtn">Importer CSV</button>
       <button class="btn-ghost" id="exportBtn">Exporter CSV</button>
@@ -307,6 +308,9 @@ svg.chart{width:100%;overflow:visible;}
         <select class="filter-select" id="fHero"><option value="">Tous les héros</option></select>
         <select class="filter-select" id="fResult"><option value="">Tous résultats</option><option value="Victoire">Victoires</option><option value="Defaite">Défaites</option></select>
         <select class="filter-select" id="fLane"><option value="">Toutes lanes</option><option value="Gold">Gold</option><option value="Exp">Exp</option><option value="Mid">Mid</option><option value="Jungle">Jungle</option><option value="Roam">Roam</option></select>
+        <select class="filter-select" id="fSaison">
+          <option value="">Toutes saisons</option>
+        </select>
         <select class="filter-select" id="fMode"><option value="">Tous modes</option><option value="Solo">Solo</option><option value="Duo">Duo</option><option value="Trio">Trio</option></select>
         <select class="filter-select" id="fPeriod"><option value="">Toute période</option><option value="7">7 derniers jours</option><option value="30">30 derniers jours</option></select>
         <button class="btn-ghost" id="clearFilters">Effacer</button>
@@ -334,16 +338,72 @@ let sortCol='idx';let sortDir=-1;
 const KNOWN_HEROES=['Lunox','Valentina','Brody','Clint'];
 const RANK_TIERS=['Warrior','Elite','Master','Grandmaster','Epic','Legend','Mythic','Mythical Glory'];
 
+
+// ─── GESTION DES SAISONS ───
+let activeSaison = null; // null = toutes saisons
+
+function getSaisons(){
+  const s=new Set(matches.map(m=>m.saison).filter(Boolean));
+  return [...s].sort((a,b)=>{
+    const na=parseInt(a.replace(/\D/g,''))||0;
+    const nb=parseInt(b.replace(/\D/g,''))||0;
+    return nb-na;
+  });
+}
+
+function getActiveSaison(){
+  return activeSaison;
+}
+
+function setActiveSaison(s){
+  activeSaison=s;
+  renderSaisonSelector();
+  renderAll();
+}
+
+function renderSaisonSelector(){
+  const el=document.getElementById('saisonSelector');
+  if(!el)return;
+  const saisons=getSaisons();
+  el.innerHTML=`
+    <select id="saisonSelect" style="background:var(--surface-2);border:1px solid var(--line);color:var(--text);padding:7px 12px;border-radius:6px;font-size:14px;font-family:'Rajdhani',sans-serif;font-weight:600;">
+      ${saisons.map(s=>`<option value="${s}"${activeSaison===s?' selected':''}>${s}</option>`).join('')}
+      <option value=""${activeSaison===null?' selected':''}>Toutes saisons</option>
+    </select>
+    <button class="btn-ghost" id="newSaisonBtn" style="white-space:nowrap;">+ Nouvelle saison</button>
+  `;
+  document.getElementById('saisonSelect').addEventListener('change',e=>{
+    activeSaison=e.target.value||null;
+    renderAll();
+  });
+  document.getElementById('newSaisonBtn').addEventListener('click',()=>{
+    const name=prompt('Nom de la nouvelle saison (ex: S42):');
+    if(!name||!name.trim())return;
+    const trimmed=name.trim();
+    activeSaison=trimmed;
+    // Update default saison for new entries
+    window._defaultSaison=trimmed;
+    renderSaisonSelector();
+    renderAll();
+  });
+}
+
+function matchesForView(){
+  if(!activeSaison)return matches;
+  return matches.filter(m=>(m.saison||'S41')===activeSaison);
+}
+
 // ─── STORAGE ───
 async function loadMatches(){
   document.getElementById('syncStatus').textContent='⏳ Synchronisation…';
   try{
     const r=await sbFetch('/rest/v1/mlbb_matches?select=*&order=idx.asc');
+
     if(r.ok){
       const data=await r.json();
       matches=data.map(row=>({
         id:row.id, idx:row.idx, date:row.date, heroe:row.heroe, role:row.role,
-        mode_jeu:row.mode_jeu||'Solo', resultat:row.resultat, kills:row.kills, deaths:row.deaths, assists:row.assists,
+        mode_jeu:row.mode_jeu||'Solo', saison:row.saison||'S41', resultat:row.resultat, kills:row.kills, deaths:row.deaths, assists:row.assists,
         or:row.or_gold, score_performance:row.score_performance,
         degats_infliges:row.degats_infliges, degats_tourelle:row.degats_tourelle,
         degats_subis:row.degats_subis, participation_teamfight:row.participation_teamfight,
@@ -394,6 +454,7 @@ function heroColor(name){
 
 // ─── KPIs ───
 function computeKPIs(){
+  const matches=matchesForView();
   const total=matches.length;
   const wins=matches.filter(m=>m.resultat==='Victoire').length;
   const winrate=total?Math.round((wins/total)*100):0;
@@ -462,6 +523,7 @@ function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;}
 
 // ─── CORRÉLATION VICTOIRE/DÉFAITE ───
 function renderCorrelation(){
+  const matches=matchesForView();
   const el=document.getElementById('correlationTable');
   if(!el)return;
   function parseDur(s){if(!s||!s.trim())return null;const m=s.match(/(\d+):(\d+)/);return m?+m[1]*60+ +m[2]:null;}
@@ -525,6 +587,7 @@ function renderCorrelation(){
 
 // ─── WINRATE PAR DURÉE ───
 function renderWRByDuration(){
+  const matches=matchesForView();
   const el=document.getElementById('wrByDuration');
   if(!el)return;
   function parseDur(s){if(!s||!s.trim())return null;const m=s.match(/(\d+):(\d+)/);return m?+m[1]*60+ +m[2]:null;}
@@ -555,6 +618,7 @@ function renderWRByDuration(){
 // ─── PERFORMANCE PAR HÉROS (TABLE TRIABLE) ───
 let heroSortCol='t';let heroSortDir=-1;
 function renderHeroPerformanceTable(){
+  const matches=matchesForView();
   const el=document.getElementById('heroPerformanceTable');
   if(!el)return;
   function parseDur(s){if(!s||!s.trim())return null;const m=s.match(/(\d+):(\d+)/);return m?+m[1]*60+ +m[2]:null;}
@@ -627,6 +691,7 @@ function renderHeroPerformanceTable(){
 }
 
 function renderAnalytics(){
+  // Analytics use matchesForView() internally via overridden matches
   renderCorrelation();
   renderWRByDuration();
   renderHeroPerformanceTable();
@@ -646,6 +711,7 @@ function renderBarChart(containerId,items){
 }
 
 function renderRollingWRChart(){
+  const matches=matchesForView();
   const svg=document.getElementById('rollingWRChart');
   if(!svg)return;
   const sortedM=[...matches].sort((a,b)=>(a.idx??0)-(b.idx??0));
@@ -682,6 +748,7 @@ function renderRollingWRChart(){
 }
 
 function renderWRByLane(){
+  const matches=matchesForView();
   const el=document.getElementById('wrByLane');
   const lanes=['Gold','Exp','Mid','Jungle','Roam'];
   const map={};
@@ -715,6 +782,7 @@ function renderWRByLane(){
 
 // ─── HERO CARDS ───
 function renderHeroCards(){
+  const matches=matchesForView();
   const hs=heroStats();
   const el=document.getElementById('heroCards');
   const entries=Object.entries(hs);
@@ -767,17 +835,26 @@ function getFilteredMatches(){
   const fRes=document.getElementById('fResult').value;
   const fLane=document.getElementById('fLane').value;
   const fPeriod=document.getElementById('fPeriod').value;
-  let list=[...matches];
+  const fSaison=document.getElementById('fSaison')?.value||'';
+  const fMode2=document.getElementById('fMode')?.value||'';
+  let list=activeSaison?matches.filter(m=>(m.saison||'S41')===activeSaison):[...matches];
   if(fHero)list=list.filter(m=>m.heroe===fHero);
   if(fRes)list=list.filter(m=>m.resultat===fRes);
-  const fMode=document.getElementById('fMode').value;
   if(fLane)list=list.filter(m=>m.role===fLane);
-  if(fMode)list=list.filter(m=>(m.mode_jeu||'Solo')===fMode);
+  if(fSaison)list=list.filter(m=>(m.saison||'S41')===fSaison);
+  if(fMode2)list=list.filter(m=>(m.mode_jeu||'Solo')===fMode2);
   if(fPeriod){const cutoff=new Date();cutoff.setDate(cutoff.getDate()-+fPeriod);list=list.filter(m=>m.date&&new Date(m.date)>=cutoff);}
   return list;
 }
 function renderTable(){
   // update hero filter options
+  // Update saison filter options
+  const saisonSel=document.getElementById('fSaison');
+  if(saisonSel){
+    const curS=saisonSel.value;
+    const allS=getSaisons();
+    saisonSel.innerHTML='<option value="">Toutes saisons</option>'+allS.map(s=>`<option value="${s}"${s===curS?' selected':''}>${s}</option>`).join('');
+  }
   const heroes=[...new Set(matches.map(m=>m.heroe).filter(Boolean))];
   const sel=document.getElementById('fHero');
   const cur=sel.value;
@@ -807,6 +884,7 @@ function renderTable(){
       <td class="hero-cell"><span class="dot" style="background:${heroColor(m.heroe)}"></span>${m.heroe||'—'}</td>
       <td>${m.role||'—'}</td>
       <td>${m.mode_jeu||'Solo'}</td>
+      <td>${m.saison||'S41'}</td>
       <td>${m.resultat==='Victoire'?'✓ Victoire':'✗ Défaite'}</td>
       <td>${kda}</td><td>${ratio}</td>
       <td>${gpm!=null?gpm+'g/m':'—'}</td>
@@ -1035,6 +1113,9 @@ function showEditPanel(data,fromAnalysis){
           ${['Gold','Exp','Mid','Jungle','Roam'].map(l=>`<option value="${l}"${data.role===l?' selected':''}>${l}</option>`).join('')}
         </select>
       </div>
+      <div class="field"><label>Saison</label>
+        <input type="text" id="f_saison" value="${data.saison||window._defaultSaison||activeSaison||'S41'}" placeholder="ex: S41">
+      </div>
       <div class="field"><label>Mode</label>
         <select id="f_mode_jeu">
           <option value="Solo"${(data.mode_jeu||'Solo')==='Solo'?' selected':''}>Solo</option>
@@ -1101,6 +1182,7 @@ function showEditPanel(data,fromAnalysis){
       heroe:heroFinal||null,
       role:document.getElementById('f_role').value||null,
       mode_jeu:document.getElementById('f_mode_jeu').value||'Solo',
+      saison:document.getElementById('f_saison').value.trim()||activeSaison||'S41',
       resultat:selectedResult,
       kills:num('f_kills'),deaths:num('f_deaths'),assists:num('f_assists'),
       or:num('f_or'),score_performance:num('f_score'),
@@ -1118,7 +1200,7 @@ function showEditPanel(data,fromAnalysis){
 }
 
 // ─── EXPORT / IMPORT ───
-const CSV_HEADERS=['date','heroe','role','mode_jeu','resultat','kills','deaths','assists','or','score_performance','degats_infliges','degats_tourelle','degats_subis','participation_teamfight','mvp','duree_partie'];
+const CSV_HEADERS=['date','heroe','role','mode_jeu','saison','resultat','kills','deaths','assists','or','score_performance','degats_infliges','degats_tourelle','degats_subis','participation_teamfight','mvp','duree_partie'];
 
 function exportCSV(){
   const lines=[CSV_HEADERS.join(',')];
@@ -1180,9 +1262,9 @@ function switchTab(id){
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
 
 // ─── FILTERS ───
-['fHero','fResult','fLane','fMode','fPeriod'].forEach(id=>document.getElementById(id).addEventListener('change',renderTable));
+['fHero','fResult','fLane','fMode','fSaison','fPeriod'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('change',renderTable);});
 document.getElementById('clearFilters').addEventListener('click',()=>{
-  ['fHero','fResult','fLane','fMode','fPeriod'].forEach(id=>{document.getElementById(id).value='';});renderTable();
+  ['fHero','fResult','fLane','fMode','fSaison','fPeriod'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderTable();
 });
 
 // ─── EVENTS ───
