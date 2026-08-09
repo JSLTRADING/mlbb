@@ -213,7 +213,6 @@ svg.chart{width:100%;overflow:visible;}
       <h1>Suivi Ranked — MLBB</h1>
       <p>Analyses extraites par IA depuis tes captures de fin de partie &nbsp;·&nbsp; <span id="syncStatus" style="color:var(--muted);">⏳ Chargement…</span></p>
     </div>
-    <div id="saisonSelector" style="display:flex;gap:8px;align-items:center;"></div>
     <div class="top-actions">
 <button class="btn-ghost" id="importBtn">Importer CSV</button>
       <button class="btn-ghost" id="exportBtn">Exporter CSV</button>
@@ -257,6 +256,7 @@ svg.chart{width:100%;overflow:visible;}
     <div id="importContainer"></div>
     <div id="exportContainer"></div>
   </div>
+  <div id="saisonSelector" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:20px;padding:12px 16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;"></div>
 
   <!-- TAB: ANALYTICS -->
   <div id="tab-stats" class="tab-content active">
@@ -377,14 +377,26 @@ function renderSaisonSelector(){
     renderAll();
   });
   document.getElementById('newSaisonBtn').addEventListener('click',()=>{
-    const name=prompt('Nom de la nouvelle saison (ex: S42):');
-    if(!name||!name.trim())return;
-    const trimmed=name.trim();
-    activeSaison=trimmed;
-    // Update default saison for new entries
-    window._defaultSaison=trimmed;
-    renderSaisonSelector();
-    renderAll();
+    const existing=document.getElementById('newSaisonForm');
+    if(existing){existing.remove();return;}
+    const form=document.createElement('div');
+    form.id='newSaisonForm';
+    form.style.cssText='display:flex;gap:8px;align-items:center;margin-top:8px;';
+    form.innerHTML='<input id="newSaisonInput" type="text" placeholder="ex: S42" style="background:var(--surface-2);border:1px solid var(--gold);color:var(--text);padding:6px 10px;border-radius:6px;font-size:14px;width:100px;">'
+      +'<button id="newSaisonConfirm" class="btn-primary" style="width:auto;padding:6px 14px;font-size:13px;">Créer</button>'
+      +'<button id="newSaisonCancel" class="btn-ghost" style="font-size:13px;">✕</button>';
+    el.parentNode.insertBefore(form, el.nextSibling);
+    document.getElementById('newSaisonInput').focus();
+    document.getElementById('newSaisonCancel').onclick=()=>form.remove();
+    document.getElementById('newSaisonConfirm').onclick=()=>{
+      const val=document.getElementById('newSaisonInput').value.trim();
+      if(!val)return;
+      activeSaison=val;
+      window._defaultSaison=val;
+      form.remove();
+      renderSaisonSelector();
+      renderAll();
+    };
   });
 }
 
