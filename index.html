@@ -909,7 +909,7 @@ function renderTable(){
   const th=(col,label)=>`<th class="${sortCol===col?'sorted':''}" data-col="${col}">${label}${arrow(col)}</th>`;
   container.innerHTML=`<table class="hist-table">
     <thead><tr>
-      ${th('date','Date')}${th('heroe','Héros')}${th('role','Lane')}${th('mode_jeu','Mode')}${th('resultat','Résultat')}
+      ${th('date','Date')}${th('heroe','Héros')}${th('role','Lane')}${th('mode_jeu','Mode')}${th('saison','Saison')}${th('resultat','Résultat')}
       <th>K/D/A</th><th>Ratio</th><th>Or/min</th>${th('score_performance','Score')}
       ${th('degats_infliges','Dégâts')}${th('participation_teamfight','TF%')}
       <th>MVP</th><th></th>
