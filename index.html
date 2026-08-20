@@ -716,23 +716,28 @@ function classifyMatch(m){
   const ke=+m.score_ennemi||0;
   const dur=parseDuration(m.duree_partie||'');
   if(!ka&&!ke)return null;
-  const victoire=m.resultat==='Victoire';
-  const hi=Math.max(ka,ke);
-  const lo=Math.min(ka,ke);
+  const victoire=m.resultat==='Victoire'||m.resultat==='victoire';
+  // Comeback = gagné avec MOINS de kills que l'adversaire
+  // Renversement = perdu avec PLUS de kills que l'adversaire
+  const alliePlusGrand=ka>ke;
+  const comeback=(victoire&&!alliePlusGrand&&ka!==ke);
+  const renversement=(!victoire&&alliePlusGrand&&ka!==ke);
+  if(comeback)return'Comeback';
+  if(renversement)return'Renversement';
+  // Calcul du ratio normal (dans le sens du résultat)
+  const hi=victoire?Math.max(ka,ke):Math.max(ka,ke);
+  const lo=victoire?Math.min(ka,ke):Math.min(ka,ke);
   const ratio=lo>0?hi/lo:null;
   if(ratio===null)return null;
-  const serre=ratio<=1.5;  // ratio serré
-  const long15=dur&&dur>=900;  // ≥ 15 min
-  const long18=dur&&dur>=1080; // ≥ 18 min
+  const serre=ratio<1.5;
+  const long15=dur&&dur>=900;
+  const long18=dur&&dur>=1080;
   if(serre){
     return long15?'Contestée':'Contestée rapide';
   } else {
-    // Déséquilibré
-    if(long18){
-      return victoire?'Comeback':'Renversement';
-    } else {
-      return victoire?'Stomp V':'Stomp D';
-    }
+    if(ratio>=2.5)return victoire?'Stomp V':'Stomp D';
+    // 1.5-2.5
+    return victoire?(long18?'Victoire longue':'Victoire nette'):(long18?'Défaite longue':'Défaite nette');
   }
 }
 
@@ -745,7 +750,7 @@ function catColor(cat){
 function renderWRByType(){
   const el=document.getElementById('wrByType');
   if(!el)return;
-  const cats=['Stomp V','Comeback','Contestée','Contestée rapide','Renversement','Stomp D'];
+  const cats=['Stomp V','Victoire nette','Victoire longue','Comeback','Contestée','Contestée rapide','Renversement','Défaite longue','Défaite nette','Stomp D'];
   const map={};
   matches.forEach(m=>{
     const cat=classifyMatch(m);
@@ -794,7 +799,7 @@ function renderWRByType(){
     if(m.participation_teamfight)typeGroups[cat].parts.push(+m.participation_teamfight);
   });
   function avgA(arr){return arr.length?(arr.reduce((a,b)=>a+b,0)/arr.length):null;}
-  const perfCats=['Contestée','Contestée rapide','Comeback','Renversement','Stomp V','Stomp D'];
+  const perfCats=['Contestée','Contestée rapide','Victoire nette','Victoire longue','Comeback','Renversement','Défaite longue','Défaite nette','Stomp V','Stomp D'];
   html+='<table style="width:100%;border-collapse:collapse;font-size:12px;">'
     +'<thead><tr>'
     +'<th style="text-align:left;padding:5px 6px;color:var(--muted);border-bottom:1px solid var(--line);font-size:11px;font-family:Rajdhani,sans-serif;letter-spacing:.5px;">TYPE</th>'
@@ -817,7 +822,7 @@ function renderWRByType(){
   // 3. WR par type × mode de jeu
   html+='<div style="margin-top:20px;margin-bottom:8px;font-family:Rajdhani,sans-serif;font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);">WR par type × mode (Solo / Duo / Trio)</div>';
   const modes=['Solo','Duo','Trio'];
-  const keyCats=['Contestée','Contestée rapide','Comeback','Renversement','Stomp V','Stomp D'];
+  const keyCats=['Contestée','Victoire nette','Victoire longue','Comeback','Renversement','Défaite longue','Défaite nette','Stomp V','Stomp D'];
   const modeMap={};
   modes.forEach(mo=>keyCats.forEach(cat=>{modeMap[mo+'|'+cat]={w:0,t:0};}));
   matches.forEach(m=>{
@@ -1378,8 +1383,12 @@ function showEditPanel(data,fromAnalysis){
     const dur=document.getElementById('f_duree')?.value;
     const wrap=document.getElementById('f_cat_wrap');
     const disp=document.getElementById('f_cat_display');
-    if(!sa||!se||!wrap||!disp)return;
-    const fake={score_allie:+sa,score_ennemi:+se,duree_partie:dur};
+    if(!wrap||!disp)return;
+    // Read selected result from toggle buttons
+    const activeBtn=container.querySelector('.toggle-group button.active');
+    const res=activeBtn?activeBtn.dataset.res:selectedResult;
+    if(!sa||!se){wrap.style.display='none';return;}
+    const fake={score_allie:+sa,score_ennemi:+se,duree_partie:dur,resultat:res};
     const cat=classifyMatch(fake);
     if(cat){wrap.style.display='';disp.textContent=cat;disp.style.color=catColor(cat);disp.style.borderColor=catColor(cat);}
     else{wrap.style.display='none';}
@@ -1387,6 +1396,10 @@ function showEditPanel(data,fromAnalysis){
   ['f_score_allie','f_score_ennemi','f_duree'].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.addEventListener('input',updateCatDisplay);
+  });
+  // Also update when result toggle changes
+  container.querySelectorAll('.toggle-group button').forEach(btn=>{
+    btn.addEventListener('click',updateCatDisplay);
   });
   updateCatDisplay();
   document.getElementById('cancelEdit').addEventListener('click',()=>{container.innerHTML='';editingId=null;});
