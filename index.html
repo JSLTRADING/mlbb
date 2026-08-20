@@ -271,6 +271,10 @@ svg.chart{width:100%;overflow:visible;}
       <p style="font-size:11px;color:var(--muted);margin-bottom:14px;">Moyenne des indicateurs clés selon le résultat.</p>
       <div id="correlationTable"></div>
     </div>
+    <div class="panel" style="margin-bottom:20px;">
+      <h2>Winrate par type de partie</h2>
+      <div id="wrByType"></div>
+    </div>
     <div class="charts-grid" style="margin-bottom:20px;">
       <div class="chart-panel">
         <h2>Winrate par durée de partie</h2>
@@ -419,7 +423,9 @@ async function loadMatches(){
         or:row.or_gold, score_performance:row.score_performance,
         degats_infliges:row.degats_infliges, degats_tourelle:row.degats_tourelle,
         degats_subis:row.degats_subis, participation_teamfight:row.participation_teamfight,
-        mvp:row.mvp, duree_partie:row.duree_partie
+        mvp:row.mvp, duree_partie:row.duree_partie,
+        score_allie:row.score_allie!=null?+row.score_allie:null,
+        score_ennemi:row.score_ennemi!=null?+row.score_ennemi:null
       }));
       // Sync to localStorage as cache
       localStorage.setItem(STORAGE_KEY,JSON.stringify(matches));
@@ -446,7 +452,8 @@ async function persist(){
       idx:m.idx??null, mode_jeu:m.mode_jeu||'Solo', or_gold:m.or??null, score_performance:m.score_performance??null,
       degats_infliges:m.degats_infliges??null, degats_tourelle:m.degats_tourelle??null,
       degats_subis:m.degats_subis??null, participation_teamfight:m.participation_teamfight??null,
-      mvp:m.mvp||null, duree_partie:m.duree_partie||null
+      mvp:m.mvp||null, duree_partie:m.duree_partie||null,
+      score_allie:m.score_allie??null, score_ennemi:m.score_ennemi??null
     }));
     await sbFetch('/rest/v1/mlbb_matches',{method:'POST',body:JSON.stringify(rows),headers:{'Prefer':'resolution=merge-duplicates'}});
   }catch(e){console.error('Supabase sync error',e);}
@@ -702,9 +709,183 @@ function renderHeroPerformanceTable(){
   });
 }
 
+
+// ─── CLASSIFICATION DES PARTIES ───
+function classifyMatch(m){
+  const ka=+m.score_allie||0;
+  const ke=+m.score_ennemi||0;
+  const dur=parseDuration(m.duree_partie||'');
+  if(!ka&&!ke)return null;
+  const ratio=ke>0?ka/ke:null;
+  if(ratio===null)return null;
+  let cat;
+  if(ratio>=2.5)cat='Stomp V';
+  else if(ratio>=1.5)cat='Victoire nette';
+  else if(ratio>=0.6)cat='Contestée';
+  else if(ratio>=0.4)cat='Défaite nette';
+  else cat='Stomp D';
+  // Affine par durée
+  if(dur&&dur<720&&ratio>=0.6&&ratio<=1.5)cat='Stomp rapide';
+  return cat;
+}
+
+function catColor(cat){
+  const map={'Stomp V':'#3DD93D','Victoire nette':'var(--gold)','Contestée':'var(--cyan)','Défaite nette':'var(--crimson)','Stomp D':'#8D2020','Stomp rapide':'#D9A53D'};
+  return map[cat]||'var(--muted)';
+}
+
+// ─── WINRATE PAR TYPE DE PARTIE ───
+function renderWRByType(){
+  const el=document.getElementById('wrByType');
+  if(!el)return;
+  const cats=['Stomp V','Victoire nette','Contestée','Stomp rapide','Défaite nette','Stomp D'];
+  const map={};
+  matches.forEach(m=>{
+    const cat=classifyMatch(m);
+    if(!cat)return;
+    if(!map[cat])map[cat]={w:0,t:0};
+    map[cat].t++;
+    if(m.resultat==='Victoire')map[cat].w++;
+  });
+  const total=matches.filter(m=>classifyMatch(m)).length;
+  if(!total){el.innerHTML='<div class="empty-state">Pas encore de données de score.</div>';return;}
+
+  const globalWR=matches.length?Math.round(matches.filter(m=>m.resultat==='Victoire').length/matches.length*100):0;
+
+  // 1. WR par type
+  let html='<div style="margin-bottom:6px;font-size:11px;color:var(--muted);">Ligne pointillée = WR global ('+globalWR+'%)</div>';
+  html+=cats.filter(cat=>map[cat]).map(cat=>{
+    const s=map[cat];
+    const wr=Math.round(s.w/s.t*100);
+    const col=catColor(cat);
+    const diff=wr-globalWR;
+    const diffStr=(diff>=0?'+':'')+diff+'%';
+    const diffCol=diff>=0?'var(--gold)':'var(--crimson)';
+    return '<div class="dur-row" style="margin-bottom:8px;">'
+      +'<div style="width:110px;font-size:12px;color:'+col+';font-family:Rajdhani,sans-serif;font-weight:700;">'+cat+'</div>'
+      +'<div style="flex:1;position:relative;height:20px;">'
+      +'<div style="width:100%;height:100%;background:var(--surface-2);border-radius:4px;overflow:hidden;">'
+      +'<div style="width:'+wr+'%;height:100%;background:'+col+';opacity:0.75;border-radius:4px;transition:width .3s;"></div>'
+      +'</div>'
+      +'<div style="position:absolute;top:0;left:'+globalWR+'%;height:100%;width:2px;background:var(--muted);opacity:0.5;"></div>'
+      +'</div>'
+      +'<div style="min-width:32px;text-align:right;font-family:Rajdhani,sans-serif;font-weight:700;color:'+col+';font-size:14px;margin-left:8px;">'+wr+'%</div>'
+      +'<div style="min-width:36px;text-align:right;font-family:Rajdhani,sans-serif;color:'+diffCol+';font-size:11px;">'+diffStr+'</div>'
+      +'<div style="min-width:28px;text-align:right;font-size:11px;color:var(--muted);">'+s.t+'p</div>'
+      +'</div>';
+  }).join('');
+
+  // 2. Corrélation performance × type
+  html+='<div style="margin-top:20px;margin-bottom:8px;font-family:Rajdhani,sans-serif;font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);">Performance individuelle par type</div>';
+  const typeGroups={};
+  matches.forEach(m=>{
+    const cat=classifyMatch(m);if(!cat)return;
+    if(!typeGroups[cat])typeGroups[cat]={kdas:[],dmgs:[],parts:[],all:[]};
+    if(m.kills!=null&&m.deaths!=null&&m.assists!=null)typeGroups[cat].kdas.push((+m.kills+ +m.assists)/(+m.deaths+1));
+    const dur=parseDuration(m.duree_partie||'');
+    if(dur&&m.degats_infliges)typeGroups[cat].dmgs.push(+m.degats_infliges/dur*60);
+    if(m.participation_teamfight)typeGroups[cat].parts.push(+m.participation_teamfight);
+  });
+  function avgA(arr){return arr.length?(arr.reduce((a,b)=>a+b,0)/arr.length):null;}
+  const perfCats=['Contestée','Victoire nette','Stomp V','Défaite nette','Stomp D'];
+  html+='<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+    +'<thead><tr>'
+    +'<th style="text-align:left;padding:5px 6px;color:var(--muted);border-bottom:1px solid var(--line);font-size:11px;font-family:Rajdhani,sans-serif;letter-spacing:.5px;">TYPE</th>'
+    +'<th style="text-align:right;padding:5px 6px;color:var(--muted);border-bottom:1px solid var(--line);font-size:11px;font-family:Rajdhani,sans-serif;letter-spacing:.5px;">KDA</th>'
+    +'<th style="text-align:right;padding:5px 6px;color:var(--muted);border-bottom:1px solid var(--line);font-size:11px;font-family:Rajdhani,sans-serif;letter-spacing:.5px;">DMG/MIN</th>'
+    +'<th style="text-align:right;padding:5px 6px;color:var(--muted);border-bottom:1px solid var(--line);font-size:11px;font-family:Rajdhani,sans-serif;letter-spacing:.5px;">TF%</th>'
+    +'</tr></thead><tbody>';
+  perfCats.filter(cat=>typeGroups[cat]).forEach(cat=>{
+    const g=typeGroups[cat];
+    const col=catColor(cat);
+    html+='<tr>'
+      +'<td style="padding:6px 6px;border-bottom:1px solid var(--line);color:'+col+';font-family:Rajdhani,sans-serif;font-weight:700;">'+cat+'</td>'
+      +'<td style="text-align:right;padding:6px 6px;border-bottom:1px solid var(--line);font-family:JetBrains Mono,monospace;">'+(avgA(g.kdas)!=null?avgA(g.kdas).toFixed(2):'—')+'</td>'
+      +'<td style="text-align:right;padding:6px 6px;border-bottom:1px solid var(--line);font-family:JetBrains Mono,monospace;">'+(avgA(g.dmgs)!=null?Math.round(avgA(g.dmgs)).toLocaleString():'—')+'</td>'
+      +'<td style="text-align:right;padding:6px 6px;border-bottom:1px solid var(--line);font-family:JetBrains Mono,monospace;">'+(avgA(g.parts)!=null?avgA(g.parts).toFixed(0)+'%':'—')+'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table>';
+
+  // 3. WR par type × mode de jeu
+  html+='<div style="margin-top:20px;margin-bottom:8px;font-family:Rajdhani,sans-serif;font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);">WR par type × mode (Solo / Duo / Trio)</div>';
+  const modes=['Solo','Duo','Trio'];
+  const keyCats=['Contestée','Victoire nette','Stomp V','Défaite nette','Stomp D'];
+  const modeMap={};
+  modes.forEach(mo=>keyCats.forEach(cat=>{modeMap[mo+'|'+cat]={w:0,t:0};}));
+  matches.forEach(m=>{
+    const cat=classifyMatch(m);if(!cat)return;
+    const mo=m.mode_jeu||'Solo';
+    const key=mo+'|'+cat;
+    if(!modeMap[key])modeMap[key]={w:0,t:0};
+    modeMap[key].t++;
+    if(m.resultat==='Victoire')modeMap[key].w++;
+  });
+  html+='<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+    +'<thead><tr><th style="text-align:left;padding:5px 6px;color:var(--muted);border-bottom:1px solid var(--line);font-size:11px;font-family:Rajdhani,sans-serif;"></th>'
+    +modes.map(mo=>'<th style="text-align:center;padding:5px 6px;color:var(--muted);border-bottom:1px solid var(--line);font-size:11px;font-family:Rajdhani,sans-serif;">'+mo+'</th>').join('')
+    +'</tr></thead><tbody>';
+  keyCats.forEach(cat=>{
+    const col=catColor(cat);
+    html+='<tr><td style="padding:5px 6px;border-bottom:1px solid var(--line);color:'+col+';font-family:Rajdhani,sans-serif;font-weight:700;font-size:12px;">'+cat+'</td>';
+    modes.forEach(mo=>{
+      const s=modeMap[mo+'|'+cat]||{w:0,t:0};
+      const wr=s.t?Math.round(s.w/s.t*100):null;
+      const wcol=wr!=null?(wr>=50?'var(--gold)':'var(--crimson)'):'var(--muted)';
+      html+='<td style="text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);font-family:Rajdhani,sans-serif;font-weight:700;color:'+wcol+';">'
+        +(wr!=null?wr+'%<br><span style="font-size:10px;color:var(--muted);font-weight:400;">'+s.t+'p</span>':'—')+'</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+
+  // 4. Tableau croisé ratio × durée
+  html+='<div style="margin-top:20px;margin-bottom:8px;font-family:Rajdhani,sans-serif;font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);">Croisement ratio × durée</div>';
+  html+=buildCrossTable(matches);
+
+  el.innerHTML=html;
+}
+
+function buildCrossTable(matchList){
+  const durBuckets=['< 12 min','12-18 min','> 18 min'];
+  const ratioBuckets=['Serré (0.6-1.5)','Déséquilibré'];
+  const grid={};
+  durBuckets.forEach(d=>ratioBuckets.forEach(r=>{grid[d+'|'+r]={w:0,t:0};}));
+  matchList.forEach(m=>{
+    const dur=parseDuration(m.duree_partie||'');
+    const ka=+m.score_allie||0;const ke=+m.score_ennemi||0;
+    if(!dur||(!ka&&!ke))return;
+    const ratio=ke>0?ka/ke:null;if(ratio===null)return;
+    const durKey=dur<720?'< 12 min':dur<1080?'12-18 min':'> 18 min';
+    const ratioKey=(ratio>=0.6&&ratio<=1.5)?'Serré (0.6-1.5)':'Déséquilibré';
+    const key=durKey+'|'+ratioKey;
+    if(!grid[key])grid[key]={w:0,t:0};
+    grid[key].t++;
+    if(m.resultat==='Victoire')grid[key].w++;
+  });
+  let html='<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+    +'<thead><tr><th style="text-align:left;padding:5px 6px;color:var(--muted);border-bottom:1px solid var(--line);font-size:11px;font-family:Rajdhani,sans-serif;"></th>'
+    +durBuckets.map(d=>'<th style="text-align:center;padding:5px 6px;color:var(--muted);border-bottom:1px solid var(--line);font-size:11px;font-family:Rajdhani,sans-serif;">'+d+'</th>').join('')
+    +'</tr></thead><tbody>';
+  ratioBuckets.forEach(r=>{
+    html+='<tr><td style="padding:5px 6px;color:var(--muted);border-bottom:1px solid var(--line);font-size:12px;">'+r+'</td>';
+    durBuckets.forEach(d=>{
+      const s=grid[d+'|'+r]||{w:0,t:0};
+      const wr=s.t?Math.round(s.w/s.t*100):null;
+      const col=wr!=null?(wr>=50?'var(--gold)':'var(--crimson)'):'var(--muted)';
+      html+='<td style="text-align:center;padding:5px 6px;border-bottom:1px solid var(--line);font-family:Rajdhani,sans-serif;font-weight:700;color:'+col+';">'
+        +(wr!=null?wr+'%<br><span style="font-size:10px;color:var(--muted);font-weight:400;">'+s.t+'p</span>':'—')+'</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  return html;
+}
+
 function renderAnalytics(){
   // Analytics use matchesForView() internally via overridden matches
   renderCorrelation();
+  renderWRByType();
   renderWRByDuration();
   renderHeroPerformanceTable();
   renderRollingWRChart();
@@ -897,6 +1078,7 @@ function renderTable(){
       <td>${m.role||'—'}</td>
       <td>${m.mode_jeu||'Solo'}</td>
       <td>${m.saison||'S41'}</td>
+      <td>${(()=>{const cat=classifyMatch(m);return cat?'<span style="color:'+catColor(cat)+';font-family:Rajdhani,sans-serif;font-weight:700;font-size:12px;">'+cat+'</span>':'—';})()}</td>
       <td>${m.resultat==='Victoire'?'✓ Victoire':'✗ Défaite'}</td>
       <td>${kda}</td><td>${ratio}</td>
       <td>${gpm!=null?gpm+'g/m':'—'}</td>
@@ -1023,7 +1205,7 @@ async function analyzeScreenshots(){
       {type:'image',source:{type:'base64',media_type:slotFiles[1].type||'image/png',data:b1}},
       {type:'image',source:{type:'base64',media_type:slotFiles[2].type||'image/png',data:b2}}
     ];
-    const prompt=`Tu es un extracteur de données pour Mobile Legends: Bang Bang (MLBB), mode classé. Capture 1 = tableau des scores. Capture 2 = écran de stats détaillées. Le joueur à suivre s'appelle exactement "JS001". Le héros fait probablement partie de : Lunox, Valentina, Brody, Clint. Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown, avec exactement ces clés : {"resultat":"Victoire"|"Defaite"|null,"heroe":string|null,"kills":number|null,"deaths":number|null,"assists":number|null,"or":number|null,"score_performance":number|null,"degats_infliges":number|null,"degats_tourelle":number|null,"degats_subis":number|null,"participation_teamfight":number|null,"mvp":"MVP Victoire"|"MVP Defaite"|"Aucun"|null,"duree_partie":string|null,"confidence":{"resultat":0-1,"heroe":0-1,"kills":0-1,"deaths":0-1,"assists":0-1,"or":0-1,"score_performance":0-1,"degats_infliges":0-1,"participation_teamfight":0-1}}. "confidence" est ton niveau de certitude (1=très sûr, 0=très incertain) pour chaque champ. Ne devine jamais un chiffre.`;
+    const prompt=`Tu es un extracteur de données pour Mobile Legends: Bang Bang (MLBB), mode classé. Capture 1 = tableau des scores. Capture 2 = écran de stats détaillées. Le joueur à suivre s'appelle exactement "JS001". Le héros fait probablement partie de : Lunox, Valentina, Brody, Clint. Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown, avec exactement ces clés : {"resultat":"Victoire"|"Defaite"|null,"heroe":string|null,"kills":number|null,"deaths":number|null,"assists":number|null,"or":number|null,"score_performance":number|null,"degats_infliges":number|null,"degats_tourelle":number|null,"degats_subis":number|null,"participation_teamfight":number|null,"mvp":"MVP Victoire"|"MVP Defaite"|"Aucun"|null,"duree_partie":string|null,"score_allie":number|null,"score_ennemi":number|null,"confidence":{"resultat":0-1,"heroe":0-1,"kills":0-1,"deaths":0-1,"assists":0-1,"or":0-1,"score_performance":0-1,"degats_infliges":0-1,"participation_teamfight":0-1,"score_allie":0-1,"score_ennemi":0-1}}. "confidence" est ton niveau de certitude (1=très sûr, 0=très incertain) pour chaque champ. Le score de fin de partie (kills équipe vs kills adverses, affiché en grand en haut de la capture 1 de chaque côté) doit être extrait dans score_allie (côté JS001) et score_ennemi (côté adverse). Ne devine jamais un chiffre.`;
     // Compresser les images avant envoi (limite Groq: 4MB total base64)
     async function compressToBase64(file, maxW=1280){
       return new Promise(res=>{
@@ -1145,7 +1327,10 @@ function showEditPanel(data,fromAnalysis){
       <div class="field"><label>Dégâts tourelle</label><input type="number" id="f_dtour" value="${data.degats_tourelle??''}"></div>
       <div class="field"><label>Dégâts subis</label><input type="number" id="f_dsub" value="${data.degats_subis??''}"></div>
       <div class="field"><label>Participation TF (%)</label><input type="number" id="f_participation" class="${fClass('participation_teamfight',data.participation_teamfight)}" value="${data.participation_teamfight??''}"></div>
-      <div class="field"><label>Durée</label><input type="text" id="f_duree" placeholder="ex: 15:32" value="${data.duree_partie||''}"></div>
+            <div class="field"><label>Durée</label><input type="text" id="f_duree" placeholder="ex: 15:32" value="${data.duree_partie||''}"></div>
+      <div class="field" id="f_cat_wrap" style="display:none;"><label>Catégorie</label><div id="f_cat_display" style="padding:7px 8px;border-radius:6px;border:1px solid var(--line);font-size:13px;font-family:'Rajdhani',sans-serif;font-weight:700;"></div></div>
+      <div class="field"><label>Score allié</label><input type="number" id="f_score_allie" value="${data.score_allie??''}" placeholder="ex: 32"></div>
+      <div class="field"><label>Score adverse</label><input type="number" id="f_score_ennemi" value="${data.score_ennemi??''}" placeholder="ex: 20"></div>
       <div class="field"><label>MVP</label>
         <select id="f_mvp">
           <option value="Aucun"${data.mvp==='Aucun'?' selected':''}>Aucun</option>
@@ -1179,6 +1364,25 @@ function showEditPanel(data,fromAnalysis){
     document.getElementById('f_heroe_autre_wrap').style.display=e.target.value==='__autre'?'':'none';
   });
 
+
+  // Live category update
+  function updateCatDisplay(){
+    const sa=document.getElementById('f_score_allie')?.value;
+    const se=document.getElementById('f_score_ennemi')?.value;
+    const dur=document.getElementById('f_duree')?.value;
+    const wrap=document.getElementById('f_cat_wrap');
+    const disp=document.getElementById('f_cat_display');
+    if(!sa||!se||!wrap||!disp)return;
+    const fake={score_allie:+sa,score_ennemi:+se,duree_partie:dur};
+    const cat=classifyMatch(fake);
+    if(cat){wrap.style.display='';disp.textContent=cat;disp.style.color=catColor(cat);disp.style.borderColor=catColor(cat);}
+    else{wrap.style.display='none';}
+  }
+  ['f_score_allie','f_score_ennemi','f_duree'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.addEventListener('input',updateCatDisplay);
+  });
+  updateCatDisplay();
   document.getElementById('cancelEdit').addEventListener('click',()=>{container.innerHTML='';editingId=null;});
   document.getElementById('saveEdit').addEventListener('click',()=>{
     const errSave=document.getElementById('saveErr');
@@ -1202,7 +1406,9 @@ function showEditPanel(data,fromAnalysis){
       degats_infliges:num('f_dinf'),degats_tourelle:num('f_dtour'),degats_subis:num('f_dsub'),
       participation_teamfight:num('f_participation'),
       mvp:document.getElementById('f_mvp').value,
-      duree_partie:document.getElementById('f_duree').value.trim()||null
+      duree_partie:document.getElementById('f_duree').value.trim()||null,
+      score_allie:document.getElementById('f_score_allie').value!==''?+document.getElementById('f_score_allie').value:null,
+      score_ennemi:document.getElementById('f_score_ennemi').value!==''?+document.getElementById('f_score_ennemi').value:null
     };
     if(editingId){const idx=matches.findIndex(m=>String(m.id)===String(editingId));if(idx>-1)matches[idx]=match;}
     else matches.push(match);
@@ -1213,7 +1419,7 @@ function showEditPanel(data,fromAnalysis){
 }
 
 // ─── EXPORT / IMPORT ───
-const CSV_HEADERS=['date','heroe','role','mode_jeu','saison','resultat','kills','deaths','assists','or','score_performance','degats_infliges','degats_tourelle','degats_subis','participation_teamfight','mvp','duree_partie'];
+const CSV_HEADERS=['date','heroe','role','mode_jeu','saison','resultat','kills','deaths','assists','or','score_performance','degats_infliges','degats_tourelle','degats_subis','participation_teamfight','mvp','duree_partie','score_allie','score_ennemi'];
 
 function exportCSV(){
   const lines=[CSV_HEADERS.join(',')];
@@ -1254,7 +1460,7 @@ function showImportPanel(){
     let added=0;
     lines.slice(1).forEach(line=>{
       if(!line.trim())return;
-      const vals=line.match(/("(?:[^"]|"")*"|[^,]*)/g).map(v=>v.replace(/^"|"$/g,'').replace(/""/g,'"'));
+      const vals=(line+',').match(/("(?:[^"\\]|\\.)*"|[^,]*),/g).map(v=>v.slice(0,-1).replace(/^"|"$/g,'').replace(/""/g,'"'));
       const obj={};headers.forEach((h,i)=>obj[h]=vals[i]??'');
       if(!obj.id)obj.id=Date.now()+'_'+Math.random().toString(36).slice(2);
       // convert numeric fields
