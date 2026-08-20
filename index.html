@@ -1078,7 +1078,6 @@ function renderTable(){
       <td>${m.role||'—'}</td>
       <td>${m.mode_jeu||'Solo'}</td>
       <td>${m.saison||'S41'}</td>
-      <td>${(()=>{const cat=classifyMatch(m);return cat?'<span style="color:'+catColor(cat)+';font-family:Rajdhani,sans-serif;font-weight:700;font-size:12px;">'+cat+'</span>':'—';})()}</td>
       <td>${m.resultat==='Victoire'?'✓ Victoire':'✗ Défaite'}</td>
       <td>${kda}</td><td>${ratio}</td>
       <td>${gpm!=null?gpm+'g/m':'—'}</td>
@@ -1091,7 +1090,7 @@ function renderTable(){
   const th=(col,label)=>`<th class="${sortCol===col?'sorted':''}" data-col="${col}">${label}${arrow(col)}</th>`;
   container.innerHTML=`<table class="hist-table">
     <thead><tr>
-      ${th('date','Date')}${th('heroe','Héros')}${th('role','Lane')}${th('mode_jeu','Mode')}${th('saison','Saison')}<th>Type</th>${th('resultat','Résultat')}
+      ${th('date','Date')}${th('heroe','Héros')}${th('role','Lane')}${th('mode_jeu','Mode')}${th('saison','Saison')}${th('resultat','Résultat')}
       <th>K/D/A</th><th>Ratio</th><th>Or/min</th>${th('score_performance','Score')}
       ${th('degats_infliges','Dégâts')}${th('participation_teamfight','TF%')}
       <th>MVP</th><th></th>
