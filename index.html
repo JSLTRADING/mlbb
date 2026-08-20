@@ -716,17 +716,24 @@ function classifyMatch(m){
   const ke=+m.score_ennemi||0;
   const dur=parseDuration(m.duree_partie||'');
   if(!ka&&!ke)return null;
-  const ratio=ke>0?ka/ke:null;
+  const victoire=m.resultat==='Victoire';
+  const hi=Math.max(ka,ke);
+  const lo=Math.min(ka,ke);
+  const ratio=lo>0?hi/lo:null;
   if(ratio===null)return null;
-  let cat;
-  if(ratio>=2.5)cat='Stomp V';
-  else if(ratio>=1.5)cat='Victoire nette';
-  else if(ratio>=0.6)cat='Contestée';
-  else if(ratio>=0.4)cat='Défaite nette';
-  else cat='Stomp D';
-  // Affine par durée
-  if(dur&&dur<720&&ratio>=0.6&&ratio<=1.5)cat='Stomp rapide';
-  return cat;
+  const serre=ratio<=1.5;  // ratio serré
+  const long15=dur&&dur>=900;  // ≥ 15 min
+  const long18=dur&&dur>=1080; // ≥ 18 min
+  if(serre){
+    return long15?'Contestée':'Contestée rapide';
+  } else {
+    // Déséquilibré
+    if(long18){
+      return victoire?'Comeback':'Renversement';
+    } else {
+      return victoire?'Stomp V':'Stomp D';
+    }
+  }
 }
 
 function catColor(cat){
@@ -738,7 +745,7 @@ function catColor(cat){
 function renderWRByType(){
   const el=document.getElementById('wrByType');
   if(!el)return;
-  const cats=['Stomp V','Victoire nette','Contestée','Stomp rapide','Défaite nette','Stomp D'];
+  const cats=['Stomp V','Comeback','Contestée','Contestée rapide','Renversement','Stomp D'];
   const map={};
   matches.forEach(m=>{
     const cat=classifyMatch(m);
@@ -787,7 +794,7 @@ function renderWRByType(){
     if(m.participation_teamfight)typeGroups[cat].parts.push(+m.participation_teamfight);
   });
   function avgA(arr){return arr.length?(arr.reduce((a,b)=>a+b,0)/arr.length):null;}
-  const perfCats=['Contestée','Victoire nette','Stomp V','Défaite nette','Stomp D'];
+  const perfCats=['Contestée','Contestée rapide','Comeback','Renversement','Stomp V','Stomp D'];
   html+='<table style="width:100%;border-collapse:collapse;font-size:12px;">'
     +'<thead><tr>'
     +'<th style="text-align:left;padding:5px 6px;color:var(--muted);border-bottom:1px solid var(--line);font-size:11px;font-family:Rajdhani,sans-serif;letter-spacing:.5px;">TYPE</th>'
@@ -810,7 +817,7 @@ function renderWRByType(){
   // 3. WR par type × mode de jeu
   html+='<div style="margin-top:20px;margin-bottom:8px;font-family:Rajdhani,sans-serif;font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);">WR par type × mode (Solo / Duo / Trio)</div>';
   const modes=['Solo','Duo','Trio'];
-  const keyCats=['Contestée','Victoire nette','Stomp V','Défaite nette','Stomp D'];
+  const keyCats=['Contestée','Contestée rapide','Comeback','Renversement','Stomp V','Stomp D'];
   const modeMap={};
   modes.forEach(mo=>keyCats.forEach(cat=>{modeMap[mo+'|'+cat]={w:0,t:0};}));
   matches.forEach(m=>{
