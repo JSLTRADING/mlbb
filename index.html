@@ -301,6 +301,16 @@ svg.chart{width:100%;overflow:visible;}
 
   <!-- TAB: HÉROS -->
   <div id="tab-heroes" class="tab-content">
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="filters">
+        <select class="filter-select" id="fHeroTabMode"><option value="">Tous modes</option><option value="Solo">Solo</option><option value="Duo">Duo</option><option value="Trio">Trio</option></select>
+        <select class="filter-select" id="fHeroTabResult"><option value="">Tous résultats</option><option value="Victoire">Victoires</option><option value="Defaite">Défaites</option></select>
+        <input type="date" class="filter-select" id="fHeroTabDateFrom" title="Du">
+        <input type="date" class="filter-select" id="fHeroTabDateTo" title="Au">
+        <select class="filter-select" id="fHeroTabSaison"><option value="">Toutes saisons</option></select>
+        <button class="btn-ghost" id="clearHeroFilters">Effacer</button>
+      </div>
+    </div>
     <div class="hero-cards" id="heroCards"></div>
   </div>
 
@@ -317,6 +327,8 @@ svg.chart{width:100%;overflow:visible;}
         </select>
         <select class="filter-select" id="fMode"><option value="">Tous modes</option><option value="Solo">Solo</option><option value="Duo">Duo</option><option value="Trio">Trio</option></select>
         <select class="filter-select" id="fPeriod"><option value="">Toute période</option><option value="7">7 derniers jours</option><option value="30">30 derniers jours</option></select>
+        <input type="date" class="filter-select" id="fDateFrom" title="Du">
+        <input type="date" class="filter-select" id="fDateTo" title="Au">
         <button class="btn-ghost" id="clearFilters">Effacer</button>
       </div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><div id="tableContainer"></div></div>
@@ -511,9 +523,10 @@ function renderRollingWR(){
 }
 
 // ─── HERO STATS ───
-function heroStats(){
+function heroStats(matchList){
+  const matchList2=matchList||matchesForView();
   const map={};
-  matches.forEach(m=>{
+  matchList2.forEach(m=>{
     const h=m.heroe||'Inconnu';
     if(!map[h])map[h]={wins:0,total:0,kdas:[],golds:[],durations:[],scores:[],dmgs:[],parts:[],ors:[]};
     const s=map[h];s.total++;
@@ -987,8 +1000,25 @@ function renderWRByLane(){
 
 // ─── HERO CARDS ───
 function renderHeroCards(){
-  const matches=matchesForView();
-  const hs=heroStats();
+  // Update hero tab saison filter options
+  const heroSaisonSel=document.getElementById('fHeroTabSaison');
+  if(heroSaisonSel){
+    const curHS=heroSaisonSel.value;
+    const allS=getSaisons();
+    heroSaisonSel.innerHTML='<option value="">Toutes saisons</option>'+allS.map(s=>`<option value="${s}"${s===curHS?' selected':''}>${s}</option>`).join('');
+  }
+  const fHTabMode=document.getElementById('fHeroTabMode')?.value||'';
+  const fHTabResult=document.getElementById('fHeroTabResult')?.value||'';
+  const fHTabDateFrom=document.getElementById('fHeroTabDateFrom')?.value||'';
+  const fHTabDateTo=document.getElementById('fHeroTabDateTo')?.value||'';
+  const fHTabSaison=document.getElementById('fHeroTabSaison')?.value||'';
+  let matches=matchesForView();
+  if(fHTabMode)matches=matches.filter(m=>(m.mode_jeu||'Solo')===fHTabMode);
+  if(fHTabResult)matches=matches.filter(m=>m.resultat===fHTabResult);
+  if(fHTabDateFrom)matches=matches.filter(m=>m.date&&m.date>=fHTabDateFrom);
+  if(fHTabDateTo)matches=matches.filter(m=>m.date&&m.date<=fHTabDateTo);
+  if(fHTabSaison)matches=matches.filter(m=>(m.saison||'S41')===fHTabSaison);
+  const hs=heroStats(matches);
   const el=document.getElementById('heroCards');
   const entries=Object.entries(hs);
   if(!entries.length){el.innerHTML='<div class="empty-state" style="padding:36px;">Aucune partie enregistrée.</div>';return;}
@@ -1041,6 +1071,8 @@ function getFilteredMatches(){
   const fLane=document.getElementById('fLane').value;
   const fPeriod=document.getElementById('fPeriod').value;
   const fSaison=document.getElementById('fSaison')?.value||'';
+  const fDateFrom=document.getElementById('fDateFrom')?.value||'';
+  const fDateTo=document.getElementById('fDateTo')?.value||'';
   const fMode2=document.getElementById('fMode')?.value||'';
   let list=activeSaison?matches.filter(m=>(m.saison||'S41')===activeSaison):[...matches];
   if(fHero)list=list.filter(m=>m.heroe===fHero);
@@ -1049,6 +1081,8 @@ function getFilteredMatches(){
   if(fSaison)list=list.filter(m=>(m.saison||'S41')===fSaison);
   if(fMode2)list=list.filter(m=>(m.mode_jeu||'Solo')===fMode2);
   if(fPeriod){const cutoff=new Date();cutoff.setDate(cutoff.getDate()-+fPeriod);list=list.filter(m=>m.date&&new Date(m.date)>=cutoff);}
+  if(fDateFrom)list=list.filter(m=>m.date&&m.date>=fDateFrom);
+  if(fDateTo)list=list.filter(m=>m.date&&m.date<=fDateTo);
   return list;
 }
 function renderTable(){
@@ -1500,9 +1534,14 @@ function switchTab(id){
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
 
 // ─── FILTERS ───
-['fHero','fResult','fLane','fMode','fSaison','fPeriod'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('change',renderTable);});
+['fHero','fResult','fLane','fMode','fSaison','fPeriod','fDateFrom','fDateTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('change',renderTable);});
+['fHeroTabMode','fHeroTabResult','fHeroTabDateFrom','fHeroTabDateTo','fHeroTabSaison'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('change',renderHeroCards);});
+document.getElementById('clearHeroFilters')?.addEventListener('click',()=>{
+  ['fHeroTabMode','fHeroTabResult','fHeroTabDateFrom','fHeroTabDateTo','fHeroTabSaison'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderHeroCards();
+});
 document.getElementById('clearFilters').addEventListener('click',()=>{
-  ['fHero','fResult','fLane','fMode','fSaison','fPeriod'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderTable();
+  ['fHero','fResult','fLane','fMode','fSaison','fPeriod','fDateFrom','fDateTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderTable();
 });
 
 // ─── EVENTS ───
