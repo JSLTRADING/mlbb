@@ -69,16 +69,16 @@ button{font-family:'Inter',sans-serif;cursor:pointer;}
 
 /* FILTERS */
 .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
-.filter-select{background:var(--surface-2);border:1px solid var(--line);color:var(--text);padding:6px 10px;border-radius:6px;font-size:14px;font-family:'Inter',sans-serif;}
+.filter-select{background:var(--surface-2);border:1px solid var(--line);color:var(--text);padding:4px 7px;border-radius:6px;font-size:10px;font-family:'Inter',sans-serif;}
 .filter-select:focus{outline:2px solid var(--gold);outline-offset:2px;}
 
 /* TABLE */
-table{width:100%;border-collapse:collapse;font-size:14px;}
-thead th{text-align:left;font-family:'Rajdhani',sans-serif;font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line);font-weight:600;cursor:pointer;user-select:none;white-space:nowrap;}
+table{width:100%;border-collapse:collapse;font-size:10.5px;}
+thead th{text-align:left;font-family:'Rajdhani',sans-serif;font-size:9px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line);font-weight:600;cursor:pointer;user-select:none;white-space:nowrap;}
 thead th:hover{color:var(--text);}
 thead th .sort-arrow{font-size:9px;margin-left:3px;opacity:.5;}
 thead th.sorted .sort-arrow{opacity:1;color:var(--gold);}
-tbody td{padding:8px 8px;border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:14px;}
+tbody td{padding:6px 6px;border-bottom:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:10.5px;}
 tbody tr:hover{background:var(--surface-2);}
 tbody tr.victoire td.result-cell{border-left:3px solid var(--gold);}
 tbody tr.defaite td.result-cell{border-left:3px solid var(--crimson);}
@@ -203,6 +203,12 @@ svg.chart{width:100%;overflow:visible;}
 
 .hist-table td:nth-child(1),.hist-table th:nth-child(1){border-right:none !important;}
 .hist-table td:nth-child(2),.hist-table th:nth-child(2){border-left:none !important;}
+.menu-item{display:block;width:100%;background:none;border:none;color:var(--text);padding:10px 14px;text-align:left;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;}
+.menu-item:hover{background:var(--surface-2);}
+
+.btn-ghost-sm{background:transparent;border:1px solid var(--line);color:var(--muted);padding:4px 7px;border-radius:6px;font-size:10px;font-family:'Inter',sans-serif;cursor:pointer;}
+.btn-ghost-sm:hover{color:var(--text);border-color:var(--muted);}
+input[type="date"].filter-select{padding:3px 6px;font-size:10px;}
 </style>
 </head>
 <body>
@@ -210,13 +216,20 @@ svg.chart{width:100%;overflow:visible;}
   <div class="tooltip" id="tooltip"></div>
   <header class="top">
     <div class="title-block">
-      <h1>Suivi Ranked — MLBB</h1>
-      <p>Analyses extraites par IA depuis tes captures de fin de partie &nbsp;·&nbsp; <span id="syncStatus" style="color:var(--muted);">⏳ Chargement…</span></p>
+      <h1 style="font-size:17px;">MLBB Ranked</h1>
+      <p style="font-size:11px;margin-top:2px;"><span id="syncStatus" style="color:var(--muted);">⏳ Chargement…</span></p>
     </div>
-    <div class="top-actions">
-<button class="btn-ghost" id="importBtn">Importer CSV</button>
-      <button class="btn-ghost" id="exportBtn">Exporter CSV</button>
-      <button class="btn-ghost" id="resetBtn">Réinitialiser</button>
+    <div class="top-actions" style="gap:6px;">
+      <div style="position:relative;">
+        <button class="btn-ghost" id="menuBtn" style="padding:6px 12px;font-size:18px;line-height:1;">⋯</button>
+        <div id="menuDropdown" style="display:none;position:absolute;right:0;top:38px;background:var(--surface);border:1px solid var(--line);border-radius:8px;min-width:190px;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.5);">
+          <button class="menu-item" id="importBtn">📥 Importer CSV</button>
+          <button class="menu-item" id="exportBtn">📤 Exporter CSV</button>
+          <button class="menu-item" id="newSaisonMenuBtn">＋ Nouvelle saison</button>
+          <div style="height:1px;background:var(--line);margin:3px 0;"></div>
+          <button class="menu-item" id="resetBtn" style="color:var(--crimson);">🗑 Réinitialiser</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -256,7 +269,6 @@ svg.chart{width:100%;overflow:visible;}
     <div id="importContainer"></div>
     <div id="exportContainer"></div>
   </div>
-  <div id="saisonSelector" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:20px;padding:12px 16px;background:var(--surface);border:1px solid var(--line);border-radius:8px;"></div>
 
   <!-- TAB: ANALYTICS -->
   <div id="tab-stats" class="tab-content active">
@@ -266,7 +278,7 @@ svg.chart{width:100%;overflow:visible;}
         <input type="date" class="filter-select" id="fStatsDateFrom" title="Du">
         <input type="date" class="filter-select" id="fStatsDateTo" title="Au">
         <select class="filter-select" id="fStatsSaison"><option value="">Toutes saisons</option></select>
-        <button class="btn-ghost" id="clearStatsFilters">Effacer</button>
+        <button class="btn-ghost-sm" id="clearStatsFilters">Effacer</button>
       </div>
     </div>
     <div class="panel" style="margin-bottom:20px;">
@@ -317,7 +329,7 @@ svg.chart{width:100%;overflow:visible;}
         <input type="date" class="filter-select" id="fHeroTabDateFrom" title="Du">
         <input type="date" class="filter-select" id="fHeroTabDateTo" title="Au">
         <select class="filter-select" id="fHeroTabSaison"><option value="">Toutes saisons</option></select>
-        <button class="btn-ghost" id="clearHeroFilters">Effacer</button>
+        <button class="btn-ghost-sm" id="clearHeroFilters">Effacer</button>
       </div>
     </div>
     <div class="hero-cards" id="heroCards"></div>
@@ -338,7 +350,7 @@ svg.chart{width:100%;overflow:visible;}
         <select class="filter-select" id="fPeriod"><option value="">Toute période</option><option value="7">7 derniers jours</option><option value="30">30 derniers jours</option></select>
         <input type="date" class="filter-select" id="fDateFrom" title="Du">
         <input type="date" class="filter-select" id="fDateTo" title="Au">
-        <button class="btn-ghost" id="clearFilters">Effacer</button>
+        <button class="btn-ghost-sm" id="clearFilters">Effacer</button>
       </div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;"><div id="tableContainer"></div></div>
     </div>
@@ -403,13 +415,12 @@ function renderSaisonSelector(){
       ${saisons.map(s=>`<option value="${s}"${activeSaison===s?' selected':''}>${s}</option>`).join('')}
       <option value=""${activeSaison===null?' selected':''}>Toutes saisons</option>
     </select>
-    <button class="btn-ghost" id="newSaisonBtn" style="white-space:nowrap;">+ Nouvelle saison</button>
   `;
   document.getElementById('saisonSelect').addEventListener('change',e=>{
     activeSaison=e.target.value||null;
     renderAll();
   });
-  document.getElementById('newSaisonBtn').addEventListener('click',()=>{
+  if(document.getElementById('newSaisonBtn'))document.getElementById('newSaisonBtn').addEventListener('click',()=>{
     const existing=document.getElementById('newSaisonForm');
     if(existing){existing.remove();return;}
     const form=document.createElement('div');
@@ -1578,6 +1589,35 @@ document.getElementById('clearFilters').addEventListener('click',()=>{
 // ─── EVENTS ───
 document.getElementById('analyzeBtn').addEventListener('click',analyzeScreenshots);
 document.getElementById('manualBtn').addEventListener('click',()=>{editingId=null;showEditPanel({},false);});
+
+// ─── MENU DROPDOWN ───
+document.getElementById('menuBtn').addEventListener('click',e=>{
+  e.stopPropagation();
+  const dd=document.getElementById('menuDropdown');
+  dd.style.display=dd.style.display==='none'?'block':'none';
+});
+document.addEventListener('click',()=>{const dd=document.getElementById('menuDropdown');if(dd)dd.style.display='none';});
+document.getElementById('menuDropdown').addEventListener('click',e=>e.stopPropagation());
+document.getElementById('newSaisonMenuBtn').addEventListener('click',()=>{
+  document.getElementById('menuDropdown').style.display='none';
+  const existing=document.getElementById('newSaisonForm');
+  if(existing){existing.remove();return;}
+  const form=document.createElement('div');
+  form.id='newSaisonForm';
+  form.style.cssText='display:flex;gap:8px;align-items:center;padding:10px 16px;flex-wrap:wrap;';
+  form.innerHTML='<input id="newSaisonInput" type="text" placeholder="ex: S42" style="background:var(--surface-2);border:1px solid var(--gold);color:var(--text);padding:6px 10px;border-radius:6px;font-size:14px;width:100px;">'
+    +'<button id="newSaisonConfirm" class="btn-primary" style="width:auto;padding:6px 14px;font-size:13px;">Créer</button>'
+    +'<button id="newSaisonCancel" class="btn-ghost" style="font-size:13px;">✕</button>';
+  document.querySelector('.tabs-nav').insertAdjacentElement('afterend',form);
+  document.getElementById('newSaisonInput').focus();
+  document.getElementById('newSaisonCancel').onclick=()=>form.remove();
+  document.getElementById('newSaisonConfirm').onclick=()=>{
+    const val=document.getElementById('newSaisonInput').value.trim();
+    if(!val)return;
+    activeSaison=val;window._defaultSaison=val;
+    form.remove();renderSaisonSelector();renderAll();
+  };
+});
 document.getElementById('exportBtn').addEventListener('click',exportCSV);
 document.getElementById('importBtn').addEventListener('click',showImportPanel);
 document.getElementById('resetBtn').addEventListener('click',()=>{if(!confirm('Supprimer toutes les parties ? Action irréversible.'))return;matches=[];persist();renderAll();});
