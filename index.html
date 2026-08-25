@@ -209,6 +209,16 @@ svg.chart{width:100%;overflow:visible;}
 .btn-ghost-sm{background:transparent;border:1px solid var(--line);color:var(--muted);padding:4px 7px;border-radius:6px;font-size:10px;font-family:'Inter',sans-serif;cursor:pointer;}
 .btn-ghost-sm:hover{color:var(--text);border-color:var(--muted);}
 input[type="date"].filter-select{padding:3px 6px;font-size:10px;}
+
+.compo-input-wrap{position:relative;}
+.compo-input-wrap input{width:100%;background:var(--surface-2);border:1px solid var(--line);color:var(--text);padding:6px 8px;border-radius:6px;font-size:13px;font-family:'Inter',sans-serif;}
+.compo-suggestions{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--gold);border-radius:0 0 6px 6px;z-index:300;max-height:160px;overflow-y:auto;}
+.compo-suggestion{padding:7px 10px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.compo-suggestion:hover,.compo-suggestion.active{background:var(--surface-2);}
+.compo-suggestion .arch-badge{font-size:9px;padding:1px 5px;border-radius:3px;opacity:.8;}
+.compo-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;}
+.compo-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:10px;font-size:10px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);}
+.compo-pill button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0;line-height:1;}
 </style>
 </head>
 <body>
@@ -1746,8 +1756,24 @@ function showEditPanel(data,fromAnalysis){
       <div class="field"><label>Durée</label><input type="text" id="f_duree" placeholder="ex: 15:32" value="${data.duree_partie||''}"></div>
       <div class="field"><label>Heure</label><input type="text" id="f_heure" placeholder="ex: 00:39" value="${data.heure_partie||''}"></div>
       <div class="field" id="f_cat_wrap" style="display:none;"><label>Catégorie</label><div id="f_cat_display" style="padding:7px 8px;border-radius:6px;border:1px solid var(--line);font-size:13px;font-family:'Rajdhani',sans-serif;font-weight:700;"></div></div>
-      <div class="field" style="grid-column:1/-1;"><label>Compo alliée (séparée par virgules)</label><input type="text" id="f_compo_allie" placeholder="ex: Aurora,Brody,Valentina,Atlas,Angela" value="${data.compo_allie||''}"></div>
-      <div class="field" style="grid-column:1/-1;"><label>Compo adverse (séparée par virgules)</label><input type="text" id="f_compo_adverse" placeholder="ex: Chou,Wanwan,Xavier,Khufra,Estes" value="${data.compo_adverse||''}"></div>
+      <div class="field" style="grid-column:1/-1;">
+        <label>Compo alliée <span style="color:var(--muted);font-size:9px;">(5 héros)</span></label>
+        <div class="compo-input-wrap" id="compo_allie_wrap">
+          <input type="text" id="f_compo_allie_input" placeholder="Tape un nom de héros…" autocomplete="off">
+          <div class="compo-suggestions" id="compo_allie_suggestions" style="display:none;"></div>
+        </div>
+        <div class="compo-pills" id="compo_allie_pills"></div>
+        <input type="hidden" id="f_compo_allie" value="${data.compo_allie||''}">
+      </div>
+      <div class="field" style="grid-column:1/-1;">
+        <label>Compo adverse <span style="color:var(--muted);font-size:9px;">(5 héros)</span></label>
+        <div class="compo-input-wrap" id="compo_adverse_wrap">
+          <input type="text" id="f_compo_adverse_input" placeholder="Tape un nom de héros…" autocomplete="off">
+          <div class="compo-suggestions" id="compo_adverse_suggestions" style="display:none;"></div>
+        </div>
+        <div class="compo-pills" id="compo_adverse_pills"></div>
+        <input type="hidden" id="f_compo_adverse" value="${data.compo_adverse||''}">
+      </div>
       <div class="field"><label>Score allié</label><input type="number" id="f_score_allie" value="${data.score_allie??''}" placeholder="ex: 32"></div>
       <div class="field"><label>Score adverse</label><input type="number" id="f_score_ennemi" value="${data.score_ennemi??''}" placeholder="ex: 20"></div>
       <div class="field"><label>MVP</label>
@@ -1810,7 +1836,62 @@ function showEditPanel(data,fromAnalysis){
     btn.addEventListener('click',updateCatDisplay);
   });
   updateCatDisplay();
+
+// ─── COMPO AUTOCOMPLETE ───
+function initCompoAutocomplete(inputId,suggestionsId,pillsId,hiddenId,maxHeroes){
+  const input=document.getElementById(inputId);
+  const sugBox=document.getElementById(suggestionsId);
+  const pillsBox=document.getElementById(pillsId);
+  const hidden=document.getElementById(hiddenId);
+  if(!input||!sugBox||!pillsBox||!hidden)return;
+  let selected=hidden.value?hidden.value.split(',').map(h=>h.trim()).filter(Boolean):[];
+  let activeIdx=-1;
+  function renderPills(){
+    pillsBox.innerHTML=selected.map(h=>{
+      const type=getArchetype(h);
+      const meta=type?ARCHETYPE_META[type]:{color:'var(--muted)',emoji:''};
+      return '<span class="compo-pill" style="border-color:'+meta.color+'44;color:'+meta.color+';">'+meta.emoji+' '+h+'<button data-hero="'+h+'" title="Retirer">✕</button></span>';
+    }).join('');
+    hidden.value=selected.join(',');
+    pillsBox.querySelectorAll('button[data-hero]').forEach(btn=>{
+      btn.addEventListener('click',()=>{selected=selected.filter(h=>h!==btn.dataset.hero);renderPills();});
+    });
+  }
+  function showSuggestions(q){
+    if(!q){sugBox.style.display='none';return;}
+    const matches=MLBB_HERO_NAMES.filter(h=>h.toLowerCase().includes(q.toLowerCase())&&!selected.includes(h)).slice(0,8);
+    if(!matches.length){sugBox.style.display='none';return;}
+    activeIdx=-1;
+    sugBox.innerHTML=matches.map((h,i)=>{
+      const type=getArchetype(h);
+      const meta=type?ARCHETYPE_META[type]:{color:'var(--muted)',emoji:'?'};
+      return '<div class="compo-suggestion" data-hero="'+h+'" data-idx="'+i+'"><span class="arch-badge" style="background:'+meta.color+'22;color:'+meta.color+';">'+meta.emoji+' '+(type||'?')+'</span>'+h+'</div>';
+    }).join('');
+    sugBox.style.display='block';
+    sugBox.querySelectorAll('.compo-suggestion').forEach(el=>{
+      el.addEventListener('mousedown',e=>{e.preventDefault();addHero(el.dataset.hero);});
+    });
+  }
+  function addHero(h){
+    if(!h||selected.includes(h)||selected.length>=maxHeroes)return;
+    selected.push(h);input.value='';sugBox.style.display='none';activeIdx=-1;renderPills();
+  }
+  input.addEventListener('input',()=>showSuggestions(input.value.trim()));
+  input.addEventListener('keydown',e=>{
+    const items=sugBox.querySelectorAll('.compo-suggestion');
+    if(e.key==='ArrowDown'){e.preventDefault();activeIdx=Math.min(activeIdx+1,items.length-1);}
+    else if(e.key==='ArrowUp'){e.preventDefault();activeIdx=Math.max(activeIdx-1,-1);}
+    else if(e.key==='Enter'&&activeIdx>=0){e.preventDefault();addHero(items[activeIdx]?.dataset.hero);}
+    else if(e.key==='Escape'){sugBox.style.display='none';}
+    items.forEach((el,i)=>el.classList.toggle('active',i===activeIdx));
+  });
+  input.addEventListener('blur',()=>setTimeout(()=>{sugBox.style.display='none';},150));
+  renderPills();
+}
+
   document.getElementById('cancelEdit').addEventListener('click',()=>{container.innerHTML='';editingId=null;});
+  initCompoAutocomplete('f_compo_allie_input','compo_allie_suggestions','compo_allie_pills','f_compo_allie',5);
+  initCompoAutocomplete('f_compo_adverse_input','compo_adverse_suggestions','compo_adverse_pills','f_compo_adverse',5);
   document.getElementById('saveEdit').addEventListener('click',()=>{
     const errSave=document.getElementById('saveErr');
     if(!selectedResult){if(errSave)errSave.style.display='block';return;}
