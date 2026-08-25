@@ -298,6 +298,10 @@ input[type="date"].filter-select{padding:3px 6px;font-size:10px;}
     </div>
     <div class="charts-grid" style="margin-bottom:20px;">
       <div class="chart-panel">
+        <h2>Winrate par heure de jeu</h2>
+        <div id="wrByHour"></div>
+      </div>
+      <div class="chart-panel">
         <h2>Winrate par durée de partie</h2>
         <div id="wrByDuration"></div>
       </div>
@@ -472,7 +476,7 @@ async function loadMatches(){
         or:row.or_gold, score_performance:row.score_performance,
         degats_infliges:row.degats_infliges, degats_tourelle:row.degats_tourelle,
         degats_subis:row.degats_subis, participation_teamfight:row.participation_teamfight,
-        mvp:row.mvp, duree_partie:row.duree_partie,
+        mvp:row.mvp, duree_partie:row.duree_partie, heure_partie:row.heure_partie||null,
         score_allie:row.score_allie!=null?+row.score_allie:null,
         score_ennemi:row.score_ennemi!=null?+row.score_ennemi:null
       }));
@@ -501,7 +505,7 @@ async function persist(){
       idx:m.idx??null, mode_jeu:m.mode_jeu||'Solo', or_gold:m.or??null, score_performance:m.score_performance??null,
       degats_infliges:m.degats_infliges??null, degats_tourelle:m.degats_tourelle??null,
       degats_subis:m.degats_subis??null, participation_teamfight:m.participation_teamfight??null,
-      mvp:m.mvp||null, duree_partie:m.duree_partie||null,
+      mvp:m.mvp||null, duree_partie:m.duree_partie||null, heure_partie:m.heure_partie||null,
       score_allie:m.score_allie??null, score_ennemi:m.score_ennemi??null
     }));
     await sbFetch('/rest/v1/mlbb_matches',{method:'POST',body:JSON.stringify(rows),headers:{'Prefer':'resolution=merge-duplicates'}});
@@ -587,6 +591,65 @@ function parseDuration(s){
   return parseFloat(s)||0;
 }
 function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;}
+
+
+// ─── WINRATE PAR HEURE ───
+function renderWRByHour(){
+  const el=document.getElementById('wrByHour');
+  if(!el)return;
+  const byHour=Array(24).fill(null).map(()=>({w:0,t:0}));
+  matches.forEach(m=>{
+    if(!m.heure_partie)return;
+    const parts=m.heure_partie.match(/(\d+):(\d+)/);
+    if(!parts)return;
+    const h=+parts[1];
+    byHour[h].t++;
+    if(m.resultat==='Victoire')byHour[h].w++;
+  });
+  const total=byHour.reduce((s,b)=>s+b.t,0);
+  if(!total){el.innerHTML='<div class="empty-state">Renseigne l&apos;heure dans le formulaire pour voir cette analyse.</div>';return;}
+  // Group by period
+  const periods=[
+    {label:'Matin (6h-12h)',lo:6,hi:12},
+    {label:'Après-midi (12h-18h)',lo:12,hi:18},
+    {label:'Soirée (18h-23h)',lo:18,hi:23},
+    {label:'Nuit (23h-6h)',lo:23,hi:30}
+  ];
+  let html='<div style="margin-bottom:12px;">';
+  periods.forEach(p=>{
+    const grp=byHour.filter((_,i)=>p.lo<=30?(i>=p.lo%24&&(p.hi<=24?i<p.hi:true)):false);
+    let w=0,t=0;
+    if(p.lo===23){
+      for(let i=23;i<24;i++){w+=byHour[i].w;t+=byHour[i].t;}
+      for(let i=0;i<6;i++){w+=byHour[i].w;t+=byHour[i].t;}
+    } else {
+      for(let i=p.lo;i<p.hi;i++){w+=byHour[i].w;t+=byHour[i].t;}
+    }
+    if(!t)return;
+    const wr=Math.round(w/t*100);
+    const col=wr>=50?'var(--gold)':'var(--crimson)';
+    html+='<div class="dur-row" style="margin-bottom:8px;">'
+      +'<div style="width:150px;font-size:10.5px;color:var(--muted);white-space:nowrap;">'+p.label+'</div>'
+      +'<div style="flex:1;height:16px;background:var(--surface-2);border-radius:4px;overflow:hidden;">'
+      +'<div style="width:'+wr+'%;height:100%;background:'+col+';border-radius:4px;"></div>'
+      +'</div>'
+      +'<div style="min-width:36px;text-align:right;font-family:Rajdhani,sans-serif;font-weight:700;color:'+col+';font-size:13px;">'+wr+'%</div>'
+      +'<div style="min-width:28px;text-align:right;font-size:9px;color:var(--muted);">'+t+'p</div>'
+      +'</div>';
+  });
+  html+='</div>';
+  // Hour grid
+  html+='<div style="display:grid;grid-template-columns:repeat(12,1fr);gap:3px;margin-top:4px;">';
+  byHour.forEach((b,h)=>{
+    const wr=b.t?b.w/b.t:null;
+    const col=wr!=null?(wr>=0.5?'var(--gold)':'var(--crimson)'):'var(--surface-2)';
+    const alpha=b.t?0.3+0.7*(b.t/Math.max(...byHour.map(x=>x.t),1)):1;
+    html+='<div title="'+h+'h : '+(b.t?b.w+'V/'+b.t+'p ('+Math.round(wr*100)+'%)':'0p')+'" style="height:24px;background:'+col+';opacity:'+(b.t?alpha:0.15)+';border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;color:rgba(255,255,255,0.7);">'+h+'</div>';
+  });
+  html+='</div>';
+  html+='<div style="font-size:9px;color:var(--muted);margin-top:4px;">Or = victoire · Rouge = défaite · Opacité = volume</div>';
+  el.innerHTML=html;
+}
 
 // ─── ANALYTICS TAB ───
 
@@ -945,6 +1008,7 @@ function buildCrossTable(matchList){
 }
 
 function renderAnalytics(){
+  renderWRByHour();
   // Analytics use matchesForView() internally via overridden matches
   renderCorrelation();
   renderWRByType();
@@ -1287,7 +1351,7 @@ async function analyzeScreenshots(){
       {type:'image',source:{type:'base64',media_type:slotFiles[1].type||'image/png',data:b1}},
       {type:'image',source:{type:'base64',media_type:slotFiles[2].type||'image/png',data:b2}}
     ];
-    const prompt=`Tu es un extracteur de données pour Mobile Legends: Bang Bang (MLBB), mode classé. Capture 1 = tableau des scores. Capture 2 = écran de stats détaillées. Le joueur à suivre s'appelle exactement "JS001". Le héros fait probablement partie de : Lunox, Valentina, Brody, Clint. Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown, avec exactement ces clés : {"resultat":"Victoire"|"Defaite"|null,"heroe":string|null,"kills":number|null,"deaths":number|null,"assists":number|null,"or":number|null,"score_performance":number|null,"degats_infliges":number|null,"degats_tourelle":number|null,"degats_subis":number|null,"participation_teamfight":number|null,"mvp":"MVP Victoire"|"MVP Defaite"|"Aucun"|null,"duree_partie":string|null,"score_allie":number|null,"score_ennemi":number|null,"confidence":{"resultat":0-1,"heroe":0-1,"kills":0-1,"deaths":0-1,"assists":0-1,"or":0-1,"score_performance":0-1,"degats_infliges":0-1,"participation_teamfight":0-1,"score_allie":0-1,"score_ennemi":0-1}}. "confidence" est ton niveau de certitude (1=très sûr, 0=très incertain) pour chaque champ. Le score de fin de partie (kills équipe vs kills adverses, affiché en grand en haut de la capture 1 de chaque côté) doit être extrait dans score_allie (côté JS001) et score_ennemi (côté adverse). Ne devine jamais un chiffre.`;
+    const prompt=`Tu es un extracteur de données pour Mobile Legends: Bang Bang (MLBB), mode classé. Capture 1 = tableau des scores. Capture 2 = écran de stats détaillées. Le joueur à suivre s'appelle exactement "JS001". Le héros fait probablement partie de : Lunox, Valentina, Brody, Clint. Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown, avec exactement ces clés : {"resultat":"Victoire"|"Defaite"|null,"heroe":string|null,"kills":number|null,"deaths":number|null,"assists":number|null,"or":number|null,"score_performance":number|null,"degats_infliges":number|null,"degats_tourelle":number|null,"degats_subis":number|null,"participation_teamfight":number|null,"mvp":"MVP Victoire"|"MVP Defaite"|"Aucun"|null,"duree_partie":string|null,"heure_partie":string|null,"score_allie":number|null,"score_ennemi":number|null,"confidence":{"resultat":0-1,"heroe":0-1,"kills":0-1,"deaths":0-1,"assists":0-1,"or":0-1,"score_performance":0-1,"degats_infliges":0-1,"participation_teamfight":0-1,"score_allie":0-1,"score_ennemi":0-1}}. "confidence" est ton niveau de certitude (1=très sûr, 0=très incertain) pour chaque champ. Le score de fin de partie (kills équipe vs kills adverses, affiché en grand en haut de la capture 1 de chaque côté) doit être extrait dans score_allie (côté JS001) et score_ennemi (côté adverse). La date et heure de la partie sont affichées en haut à droite de la capture 1 à côté de la durée (format JJ/MM/AAAA HH:MM:SS). Extrais uniquement l'heure au format "HH:MM" dans heure_partie, et la date au format "AAAA-MM-JJ" dans le champ date. Ne devine jamais un chiffre.`;
     // Compresser les images avant envoi (limite Groq: 4MB total base64)
     async function compressToBase64(file, maxW=1280){
       return new Promise(res=>{
@@ -1409,7 +1473,8 @@ function showEditPanel(data,fromAnalysis){
       <div class="field"><label>Dégâts tourelle</label><input type="number" id="f_dtour" value="${data.degats_tourelle??''}"></div>
       <div class="field"><label>Dégâts subis</label><input type="number" id="f_dsub" value="${data.degats_subis??''}"></div>
       <div class="field"><label>Participation TF (%)</label><input type="number" id="f_participation" class="${fClass('participation_teamfight',data.participation_teamfight)}" value="${data.participation_teamfight??''}"></div>
-            <div class="field"><label>Durée</label><input type="text" id="f_duree" placeholder="ex: 15:32" value="${data.duree_partie||''}"></div>
+      <div class="field"><label>Durée</label><input type="text" id="f_duree" placeholder="ex: 15:32" value="${data.duree_partie||''}"></div>
+      <div class="field"><label>Heure</label><input type="text" id="f_heure" placeholder="ex: 00:39" value="${data.heure_partie||''}"></div>
       <div class="field" id="f_cat_wrap" style="display:none;"><label>Catégorie</label><div id="f_cat_display" style="padding:7px 8px;border-radius:6px;border:1px solid var(--line);font-size:13px;font-family:'Rajdhani',sans-serif;font-weight:700;"></div></div>
       <div class="field"><label>Score allié</label><input type="number" id="f_score_allie" value="${data.score_allie??''}" placeholder="ex: 32"></div>
       <div class="field"><label>Score adverse</label><input type="number" id="f_score_ennemi" value="${data.score_ennemi??''}" placeholder="ex: 20"></div>
@@ -1497,6 +1562,7 @@ function showEditPanel(data,fromAnalysis){
       participation_teamfight:num('f_participation'),
       mvp:document.getElementById('f_mvp').value,
       duree_partie:document.getElementById('f_duree').value.trim()||null,
+      heure_partie:document.getElementById('f_heure').value.trim()||null,
       score_allie:document.getElementById('f_score_allie').value!==''?+document.getElementById('f_score_allie').value:null,
       score_ennemi:document.getElementById('f_score_ennemi').value!==''?+document.getElementById('f_score_ennemi').value:null
     };
@@ -1509,7 +1575,7 @@ function showEditPanel(data,fromAnalysis){
 }
 
 // ─── EXPORT / IMPORT ───
-const CSV_HEADERS=['date','heroe','role','mode_jeu','saison','resultat','kills','deaths','assists','or','score_performance','degats_infliges','degats_tourelle','degats_subis','participation_teamfight','mvp','duree_partie','score_allie','score_ennemi'];
+const CSV_HEADERS=['date','heroe','role','mode_jeu','saison','resultat','kills','deaths','assists','or','score_performance','degats_infliges','degats_tourelle','degats_subis','participation_teamfight','mvp','duree_partie','heure_partie','score_allie','score_ennemi'];
 
 function exportCSV(){
   const lines=[CSV_HEADERS.join(',')];
