@@ -237,7 +237,46 @@ input[type="date"].filter-select{padding:3px 6px;font-size:10px;}
     <button class="tab-btn active" data-tab="tab-stats">Analytics</button>
     <button class="tab-btn" data-tab="tab-heroes">Héros</button>
     <button class="tab-btn" data-tab="tab-history">Historique</button>
+    <button class="tab-btn" data-tab="tab-draft">Draft</button>
     <button class="tab-btn" data-tab="tab-home">Saisie</button>
+  </div>
+
+
+  <!-- TAB: DRAFT -->
+  <div id="tab-draft" class="tab-content">
+    <div class="panel" style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <h2 style="margin:0;">Analyse de Draft</h2>
+        <select class="filter-select" id="draftHeroFilter" style="margin-left:auto;"></select>
+      </div>
+      <p style="font-size:10px;color:var(--muted);margin-top:6px;">Impact de la compo adverse sur tes performances · Filtré sur le héros sélectionné</p>
+    </div>
+    <div class="panel" style="margin-bottom:14px;">
+      <h2>WR par archétype adverse</h2>
+      <p style="font-size:10px;color:var(--muted);margin-bottom:10px;">Ton winrate selon le type de compo adverse</p>
+      <div id="draftWRByArchetype"></div>
+    </div>
+    <div class="panel" style="margin-bottom:14px;">
+      <h2>Héros adverses fréquents</h2>
+      <div style="margin-bottom:10px;">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Dans tes défaites</div>
+        <div id="draftLossHeroes"></div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Dans tes victoires</div>
+        <div id="draftWinHeroes"></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:14px;">
+      <h2>Impact du roam adverse</h2>
+      <p style="font-size:10px;color:var(--muted);margin-bottom:10px;">WR selon le support/roam adverse</p>
+      <div id="draftRoamImpact"></div>
+    </div>
+    <div class="panel" style="margin-bottom:14px;">
+      <h2>Synergies alliées</h2>
+      <p style="font-size:10px;color:var(--muted);margin-bottom:10px;">Héros alliés présents dans tes victoires</p>
+      <div id="draftSynergies"></div>
+    </div>
   </div>
 
   <!-- TAB: SAISIE -->
@@ -371,6 +410,8 @@ async function sbFetch(path,opts={}){
   const r=await fetch(SUPABASE_URL+path,{...opts,headers:{...SB_HEADERS,...(opts.headers||{})}});
   return r;
 }
+const MLBB_HEROES = {"Miya": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Miya-ML.png", "Balmond": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Balmond.png", "Saber": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Saber.png", "Alice": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Alice.png", "Nana": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Nana.png", "Tigreal": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Tigreal.png", "Alucard": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Alucard-ML.png", "Karina": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Karina-ML.png", "Akai": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Akai.png", "Franco": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Franco-ML.png", "Bane": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Bane-ML.png", "Bruno": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Bruno.png", "Clint": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Clint-ML.png", "Rafaela": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/MLBB-Rafaela.png", "Eudora": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Eudora-MLBB.png", "Zilong": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Zilong.png", "Fanny": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Fanny.png", "Layla": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Layla-ML.png", "Minotaur": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Minotaur.png", "Lolita": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Lolita-ML.png", "Hayabusa": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Hayabusa.png", "Freya": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/MLBB-Freya.png", "Gord": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Gord.png", "Natalia": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Natalia.png", "Kagura": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Kagura.png", "Chou": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Chou.png", "Sun": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Sun-ML.png", "Alpha": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Alpha-ML.png", "Ruby": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Ruby.png", "Yi Sun-shin": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/MLBB-Yi-Sun-Shin.png", "Moskov": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Moskov.png", "Johnson": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Johnson-ML.png", "Cyclops": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Cyclops-MLBB.png", "Estes": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Estes-ML.png", "Hilda": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Hilda.png", "Aurora": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Aurora.png", "Lapu-Lapu": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Lapu-Lapu.png", "Vexana": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Vexana.png", "Roger": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Roger.png", "Karrie": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Karrie.png", "Gatotkaca": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Gatotkaca-ML.png", "Harley": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Harley.png", "Irithel": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Irithel.png", "Grock": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Grock.png", "Argus": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Argus.png", "Odette": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Odette.png", "Lancelot": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Lancelot.png", "Diggie": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Diggie-ML.png", "Hylos": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Hylos-MLBB.png", "Zhask": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Zhask-ML.png", "Helcurt": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Helcurt.png", "Pharsa": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Pharsa.png", "Lesley": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Lesley.png", "Jawhead": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Jawhead.png", "Angela": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Angela-ML.png", "Gusion": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Gusion.png", "Valir": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Valir.png", "Martis": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Martis.png", "Uranus": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Uranus.png", "Hanabi": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Hanabi.png", "Chang'e": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Change.png", "Kaja": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Kaja.png", "Selena": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Selena.png", "Aldous": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Aldous.png", "Claude": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Claude.png", "Vale": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Vale-ML.png", "Leomord": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Leomord.png", "Lunox": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Lunox.png", "Hanzo": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Hanzo.png", "Belerick": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Belerick.png", "Kimmy": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Kimmy.png", "Thamuz": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Thamuz.png", "Harith": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Harith-ML.png", "Minsitthar": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Minsitthar.png", "Kadita": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Kadita.png", "Faramis": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Faramis.png", "Badang": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Badang.png", "Khufra": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Khufra.png", "Granger": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Granger.png", "Guinevere": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Guinevere.png", "Esmeralda": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Esmeralda.png", "Terizla": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Terizla.png", "X.Borg": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/X.Borg_.png", "Ling": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Ling-ML.png", "Dyrroth": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Dyrroth.png", "Lylia": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Lylia.png", "Baxia": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Baxia.png", "Masha": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Masha.png", "Wanwan": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Wanwan.png", "Silvanna": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Silvanna.png", "Cecilion": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Cecilion.png", "Carmilla": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Carmilla.png", "Atlas": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Atlas.png", "Popol and Kupa": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Popol-and-Kupa.png", "Yu Zhong": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Yu-Zhong.png", "Luo Yi": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Luo-Yi.png", "Benedetta": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Benedetta.png", "Khaleed": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Khaleed-ML.png", "Barats": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Barats.png", "Brody": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Brody.png", "Yve": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Yve.png", "Mathilda": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Mathilda.png", "Paquito": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Paquito-MLBB.png", "Gloo": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Gloo.png", "Beatrix": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Beatrix.png", "Phoveus": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Phoveus-ML.png", "Natan": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Natan-ML.png", "Aulus": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Aulus-MLBB.png", "Aamon": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Aamon-ML.png", "Valentina": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Valentina-ML.png", "Edith": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Edith-ML.png", "Floryn": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Floryn-ML.png", "Yin": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Yin.png", "Melissa": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Melissa.png", "Xavier": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Xavier.png", "Julian": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Julian-ML.png", "Fredrinn": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Fredrinn-MLBB.png", "Joy": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Joy.png", "Novaria": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Novaria.png", "Arlott": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Arlott.png", "Ixia": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Ixia-ML.png", "Nolan": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Nolan.png", "Cici": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/ML-Cici.png", "Chip": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Chip-MLBB.png", "Zhuxin": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Zhuxin.png", "Suyou": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Suyou-ML.png", "Lukas": "https://www.joytify.com/blog/en-ph/wp-content/uploads/2024/11/Lukas-ML.jpg"};
+const MLBB_HERO_NAMES = ["Miya", "Balmond", "Saber", "Alice", "Nana", "Tigreal", "Alucard", "Karina", "Akai", "Franco", "Bane", "Bruno", "Clint", "Rafaela", "Eudora", "Zilong", "Fanny", "Layla", "Minotaur", "Lolita", "Hayabusa", "Freya", "Gord", "Natalia", "Kagura", "Chou", "Sun", "Alpha", "Ruby", "Yi Sun-shin", "Moskov", "Johnson", "Cyclops", "Estes", "Hilda", "Aurora", "Lapu-Lapu", "Vexana", "Roger", "Karrie", "Gatotkaca", "Harley", "Irithel", "Grock", "Argus", "Odette", "Lancelot", "Diggie", "Hylos", "Zhask", "Helcurt", "Pharsa", "Lesley", "Jawhead", "Angela", "Gusion", "Valir", "Martis", "Uranus", "Hanabi", "Chang'e", "Kaja", "Selena", "Aldous", "Claude", "Vale", "Leomord", "Lunox", "Hanzo", "Belerick", "Kimmy", "Thamuz", "Harith", "Minsitthar", "Kadita", "Faramis", "Badang", "Khufra", "Granger", "Guinevere", "Esmeralda", "Terizla", "X.Borg", "Ling", "Dyrroth", "Lylia", "Baxia", "Masha", "Wanwan", "Silvanna", "Cecilion", "Carmilla", "Atlas", "Popol and Kupa", "Yu Zhong", "Luo Yi", "Benedetta", "Khaleed", "Barats", "Brody", "Yve", "Mathilda", "Paquito", "Gloo", "Beatrix", "Phoveus", "Natan", "Aulus", "Aamon", "Valentina", "Edith", "Floryn", "Yin", "Melissa", "Xavier", "Julian", "Fredrinn", "Joy", "Novaria", "Arlott", "Ixia", "Nolan", "Cici", "Chip", "Zhuxin", "Suyou", "Lukas"];
 const STORAGE_KEY='matches';
 let matches=[];
 let slotFiles={1:null,2:null};
@@ -478,7 +519,9 @@ async function loadMatches(){
         degats_subis:row.degats_subis, participation_teamfight:row.participation_teamfight,
         mvp:row.mvp, duree_partie:row.duree_partie, heure_partie:row.heure_partie||null,
         score_allie:row.score_allie!=null?+row.score_allie:null,
-        score_ennemi:row.score_ennemi!=null?+row.score_ennemi:null
+        score_ennemi:row.score_ennemi!=null?+row.score_ennemi:null,
+        compo_allie:row.compo_allie||null,
+        compo_adverse:row.compo_adverse||null
       }));
       // Sync to localStorage as cache
       localStorage.setItem(STORAGE_KEY,JSON.stringify(matches));
@@ -506,7 +549,8 @@ async function persist(){
       degats_infliges:m.degats_infliges??null, degats_tourelle:m.degats_tourelle??null,
       degats_subis:m.degats_subis??null, participation_teamfight:m.participation_teamfight??null,
       mvp:m.mvp||null, duree_partie:m.duree_partie||null, heure_partie:m.heure_partie||null,
-      score_allie:m.score_allie??null, score_ennemi:m.score_ennemi??null
+      score_allie:m.score_allie??null, score_ennemi:m.score_ennemi??null,
+      compo_allie:m.compo_allie||null, compo_adverse:m.compo_adverse||null
     }));
     await sbFetch('/rest/v1/mlbb_matches',{method:'POST',body:JSON.stringify(rows),headers:{'Prefer':'resolution=merge-duplicates'}});
   }catch(e){console.error('Supabase sync error',e);}
@@ -649,6 +693,219 @@ function renderWRByHour(){
   html+='</div>';
   html+='<div style="font-size:9px;color:var(--muted);margin-top:4px;">Or = victoire · Rouge = défaite · Opacité = volume</div>';
   el.innerHTML=html;
+}
+
+
+// ─── HERO ARCHETYPES ───
+const HERO_ARCHETYPES = {
+  // DIVE
+  Lancelot:'Dive',Karina:'Dive',Helcurt:'Dive',Ling:'Dive',Hayabusa:'Dive',
+  Alucard:'Dive',Zilong:'Dive',Natalia:'Dive',Benedetta:'Dive',Joy:'Dive',
+  Nolan:'Dive',Arlott:'Dive',Julian:'Dive',Dyrroth:'Dive',Paquito:'Dive',
+  Aamon:'Dive',Yin:'Dive',Saber:'Dive',Fanny:'Dive',Harley:'Dive',Gusion:'Dive',
+  // POKE
+  Yve:'Poke',Xavier:'Poke',Pharsa:'Poke',Kimmy:'Poke',Lesley:'Poke',
+  Clint:'Poke',Brody:'Poke',Granger:'Poke',Beatrix:'Poke',Irithel:'Poke',
+  Wanwan:'Poke',Miya:'Poke',Layla:'Poke',Bruno:'Poke',Moskov:'Poke',
+  "Chang'e":'Poke',Cecilion:'Poke',Lunox:'Poke',Lylia:'Poke',
+  Valentina:'Poke',Kagura:'Poke',Eudora:'Poke',Cyclops:'Poke',Gord:'Poke',Novaria:'Poke',
+  // ENGAGE
+  Khufra:'Engage',Atlas:'Engage',Johnson:'Engage',Tigreal:'Engage',
+  Minotaur:'Engage',Franco:'Engage',Gatotkaca:'Engage',Hylos:'Engage',
+  Belerick:'Engage',Edith:'Engage',Barats:'Engage',Chip:'Engage',
+  Fredrinn:'Engage',Gloo:'Engage',Baxia:'Engage',Hilda:'Engage',
+  Thamuz:'Engage',Yu_Zhong:'Engage',Masha:'Engage',Terizla:'Engage',
+  Ruby:'Engage',Leomord:'Engage',
+  // SUSTAIN
+  Angela:'Sustain',Floryn:'Sustain',Estes:'Sustain',Rafaela:'Sustain',
+  Carmilla:'Sustain',Faramis:'Sustain',
+  // PROTECT
+  Mathilda:'Protect',Lolita:'Protect',Diggie:'Protect',Nana:'Protect',
+  'Popol and Kupa':'Protect',Chip:'Protect',
+  // PICK
+  Selena:'Pick',Jawhead:'Pick',Minsitthar:'Pick',Chou:'Pick',
+  Vexana:'Pick',Hanzo:'Pick',Kadita:'Pick',Aldous:'Pick',
+  // TEAMFIGHT
+  Odette:'Teamfight',Vale:'Teamfight',Faramis:'Teamfight',Aurora:'Teamfight',
+  Valir:'Teamfight',Zhask:'Teamfight',Luo_Yi:'Teamfight',Guinevere:'Teamfight',
+  Silvanna:'Teamfight',Badang:'Teamfight',Uranus:'Teamfight',Alpha:'Teamfight',
+  Esmeralda:'Teamfight',Lapu_Lapu:'Teamfight',Bane:'Teamfight',Sun:'Teamfight',
+  Khaleed:'Teamfight',Martis:'Teamfight',Akai:'Teamfight',Roger:'Teamfight',
+  Freya:'Teamfight',Argus:'Teamfight'
+};
+
+const ARCHETYPE_META = {
+  Dive:   {color:'#E05C5C',emoji:'⚡'},
+  Poke:   {color:'#D9A53D',emoji:'🎯'},
+  Engage: {color:'#3DA5D9',emoji:'🛡️'},
+  Sustain:{color:'#3DD93D',emoji:'💚'},
+  Protect:{color:'#3DA5D9',emoji:'🔮'},
+  Pick:   {color:'#C97B3D',emoji:'🎣'},
+  Teamfight:{color:'#A855F7',emoji:'💥'}
+};
+
+const ROAM_HEROES=['Angela','Mathilda','Diggie','Estes','Floryn','Rafaela','Carmilla','Lolita','Faramis','Nana','Chip','Popol and Kupa'];
+
+function getArchetype(hero){
+  if(!hero)return null;
+  const h=hero.trim();
+  return HERO_ARCHETYPES[h]||HERO_ARCHETYPES[h.replace(/ /g,'_')]||null;
+}
+
+function parseCompo(str){
+  if(!str)return[];
+  return str.split(',').map(h=>h.trim()).filter(Boolean);
+}
+
+
+// ─── DRAFT ANALYSIS ───
+function renderDraft(){
+  const heroSel=document.getElementById('draftHeroFilter');
+  if(!heroSel)return;
+
+  // Populate hero selector with played heroes
+  const playedHeroes=[...new Set(matches.map(m=>m.heroe).filter(Boolean))].sort();
+  const curHero=heroSel.value||playedHeroes[0]||'';
+  if(heroSel.options.length===0||heroSel.dataset.populated!=='1'){
+    heroSel.innerHTML=playedHeroes.map(h=>`<option value="${h}"${h===curHero?' selected':''}>${h}</option>`).join('');
+    heroSel.dataset.populated='1';
+  }
+  const selectedHero=heroSel.value||curHero;
+
+  // Filter matches with compo data for this hero
+  const heroMatches=matches.filter(m=>m.heroe===selectedHero&&m.compo_adverse);
+  const totalWithCompo=heroMatches.length;
+
+  if(!totalWithCompo){
+    ['draftWRByArchetype','draftLossHeroes','draftWinHeroes','draftRoamImpact','draftSynergies']
+      .forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<div class="empty-state">Pas encore de données de compo pour '+selectedHero+'.</div>';});
+    return;
+  }
+
+  // ── 1. WR by archetype ──
+  const arcMap={};
+  heroMatches.forEach(m=>{
+    const heroes=parseCompo(m.compo_adverse);
+    const types=new Set(heroes.map(h=>getArchetype(h)).filter(Boolean));
+    types.forEach(t=>{
+      if(!arcMap[t])arcMap[t]={w:0,t:0};
+      arcMap[t].t++;
+      if(m.resultat==='Victoire')arcMap[t].w++;
+    });
+  });
+  const globalWR=totalWithCompo?Math.round(heroMatches.filter(m=>m.resultat==='Victoire').length/totalWithCompo*100):0;
+  const arcEl=document.getElementById('draftWRByArchetype');
+  if(arcEl){
+    const items=Object.entries(arcMap).sort((a,b)=>a[1].w/a[1].t-b[1].w/b[1].t);
+    arcEl.innerHTML=items.map(([type,s])=>{
+      const wr=Math.round(s.w/s.t*100);
+      const meta=ARCHETYPE_META[type]||{color:'var(--muted)',emoji:'?'};
+      const col=wr>=50?'var(--gold)':'var(--crimson)';
+      const diff=wr-globalWR;
+      const diffStr=(diff>=0?'+':'')+diff+'%';
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">'
+        +'<div style="width:110px;font-size:10px;color:'+meta.color+';">'+meta.emoji+' '+type+'</div>'
+        +'<div style="flex:1;height:16px;background:var(--surface-2);border-radius:4px;overflow:hidden;">'
+        +'<div style="width:'+wr+'%;height:100%;background:'+col+';border-radius:4px;opacity:.85;"></div>'
+        +'</div>'
+        +'<div style="min-width:34px;text-align:right;font-family:Rajdhani,sans-serif;font-weight:700;color:'+col+';font-size:13px;">'+wr+'%</div>'
+        +'<div style="min-width:36px;text-align:right;font-size:9px;color:'+(diff>=0?'var(--gold)':'var(--crimson)')+';">'+diffStr+'</div>'
+        +'<div style="min-width:24px;text-align:right;font-size:9px;color:var(--muted);">'+s.t+'p</div>'
+        +'</div>';
+    }).join('')+'<div style="font-size:9px;color:var(--muted);margin-top:6px;">WR global avec '+selectedHero+' : '+globalWR+'%</div>';
+  }
+
+  // ── 2. Hero frequency in wins vs losses ──
+  const heroFreq={wins:{},losses:{}};
+  heroMatches.forEach(m=>{
+    const heroes=parseCompo(m.compo_adverse);
+    const bucket=m.resultat==='Victoire'?'wins':'losses';
+    heroes.forEach(h=>{heroFreq[bucket][h]=(heroFreq[bucket][h]||0)+1;});
+  });
+  function renderHeroPills(freq,el){
+    if(!el)return;
+    const sorted=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    if(!sorted.length){el.innerHTML='<div style="color:var(--muted);font-size:10px;">Pas assez de données.</div>';return;}
+    el.innerHTML=sorted.map(([h,n])=>{
+      const type=getArchetype(h);
+      const meta=type?ARCHETYPE_META[type]:{color:'var(--muted)',emoji:''};
+      return '<span style="display:inline-flex;align-items:center;gap:3px;background:'+meta.color+'22;border:1px solid '+meta.color+'44;color:'+meta.color+';padding:2px 7px;border-radius:10px;font-size:9px;margin:2px;">'
+        +meta.emoji+' '+h+' <span style="opacity:.6;">×'+n+'</span></span>';
+    }).join('');
+  }
+  renderHeroPills(heroFreq.losses,document.getElementById('draftLossHeroes'));
+  renderHeroPills(heroFreq.wins,document.getElementById('draftWinHeroes'));
+
+  // ── 3. Roam impact ──
+  const roamMap={};
+  heroMatches.forEach(m=>{
+    const heroes=parseCompo(m.compo_adverse);
+    const roams=heroes.filter(h=>ROAM_HEROES.includes(h));
+    roams.forEach(r=>{
+      if(!roamMap[r])roamMap[r]={w:0,t:0};
+      roamMap[r].t++;
+      if(m.resultat==='Victoire')roamMap[r].w++;
+    });
+  });
+  const roamEl=document.getElementById('draftRoamImpact');
+  if(roamEl){
+    const items=Object.entries(roamMap).filter(([,s])=>s.t>=2).sort((a,b)=>a[1].w/a[1].t-b[1].w/b[1].t);
+    if(!items.length){roamEl.innerHTML='<div class="empty-state">Pas assez de données (min 2 parties par roam).</div>';}
+    else{
+      roamEl.innerHTML=items.map(([h,s])=>{
+        const wr=Math.round(s.w/s.t*100);
+        const col=wr>=50?'var(--gold)':'var(--crimson)';
+        const diff=wr-globalWR;
+        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">'
+          +'<div style="width:90px;font-size:10px;color:var(--text);">'+h+'</div>'
+          +'<div style="flex:1;height:16px;background:var(--surface-2);border-radius:4px;overflow:hidden;">'
+          +'<div style="width:'+wr+'%;height:100%;background:'+col+';border-radius:4px;opacity:.85;"></div>'
+          +'</div>'
+          +'<div style="min-width:34px;text-align:right;font-family:Rajdhani,sans-serif;font-weight:700;color:'+col+';font-size:13px;">'+wr+'%</div>'
+          +'<div style="min-width:36px;text-align:right;font-size:9px;color:'+(diff>=0?'var(--gold)':'var(--crimson)')+';">'+(diff>=0?'+':'')+diff+'%</div>'
+          +'<div style="min-width:24px;text-align:right;font-size:9px;color:var(--muted);">'+s.t+'p</div>'
+          +'</div>';
+      }).join('');
+      // Alert for worst counter
+      const worst=items[0];
+      if(worst){
+        const wr=Math.round(worst[1].w/worst[1].t*100);
+        const diff=wr-globalWR;
+        if(diff<=-10){
+          roamEl.innerHTML+='<div style="font-size:9px;color:var(--crimson);margin-top:8px;padding:6px 8px;background:var(--crimson-soft);border-radius:6px;">💡 '+worst[0]+' adverse = '+(diff)+'% vs ton WR global</div>';
+        }
+      }
+    }
+  }
+
+  // ── 4. Allied synergies ──
+  const allyMap={};
+  heroMatches.filter(m=>m.resultat==='Victoire'&&m.compo_allie).forEach(m=>{
+    parseCompo(m.compo_allie).filter(h=>h!==selectedHero).forEach(h=>{
+      allyMap[h]=(allyMap[h]||0)+1;
+    });
+  });
+  const synEl=document.getElementById('draftSynergies');
+  if(synEl){
+    const total=heroMatches.filter(m=>m.resultat==='Victoire').length;
+    const items=Object.entries(allyMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    if(!items.length){synEl.innerHTML='<div class="empty-state">Pas assez de données.</div>';}
+    else{
+      synEl.innerHTML=items.map(([h,n])=>{
+        const pct=Math.round(n/total*100);
+        const type=getArchetype(h);
+        const meta=type?ARCHETYPE_META[type]:{color:'var(--muted)',emoji:''};
+        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">'
+          +'<div style="width:90px;font-size:10px;color:'+meta.color+';">'+meta.emoji+' '+h+'</div>'
+          +'<div style="flex:1;height:16px;background:var(--surface-2);border-radius:4px;overflow:hidden;">'
+          +'<div style="width:'+pct+'%;height:100%;background:'+meta.color+';border-radius:4px;opacity:.7;"></div>'
+          +'</div>'
+          +'<div style="min-width:34px;text-align:right;font-size:10px;color:var(--text);">'+n+'V</div>'
+          +'<div style="min-width:30px;text-align:right;font-size:9px;color:var(--muted);">'+pct+'%</div>'
+          +'</div>';
+      }).join('');
+    }
+  }
 }
 
 // ─── ANALYTICS TAB ───
@@ -1275,6 +1532,7 @@ function renderTable(){
 function renderAll(){
   renderSaisonSelector();
   renderKPIs();renderRollingWR();
+  if(document.getElementById('tab-draft')?.classList.contains('active'))renderDraft();
   renderTable();renderHeroCards();renderAnalytics();
 }
 
@@ -1351,7 +1609,7 @@ async function analyzeScreenshots(){
       {type:'image',source:{type:'base64',media_type:slotFiles[1].type||'image/png',data:b1}},
       {type:'image',source:{type:'base64',media_type:slotFiles[2].type||'image/png',data:b2}}
     ];
-    const prompt=`Tu es un extracteur de données pour Mobile Legends: Bang Bang (MLBB), mode classé. Capture 1 = tableau des scores. Capture 2 = écran de stats détaillées. Le joueur à suivre s'appelle exactement "JS001". Le héros fait probablement partie de : Lunox, Valentina, Brody, Clint. Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown, avec exactement ces clés : {"resultat":"Victoire"|"Defaite"|null,"heroe":string|null,"kills":number|null,"deaths":number|null,"assists":number|null,"or":number|null,"score_performance":number|null,"degats_infliges":number|null,"degats_tourelle":number|null,"degats_subis":number|null,"participation_teamfight":number|null,"mvp":"MVP Victoire"|"MVP Defaite"|"Aucun"|null,"duree_partie":string|null,"heure_partie":string|null,"score_allie":number|null,"score_ennemi":number|null,"confidence":{"resultat":0-1,"heroe":0-1,"kills":0-1,"deaths":0-1,"assists":0-1,"or":0-1,"score_performance":0-1,"degats_infliges":0-1,"participation_teamfight":0-1,"score_allie":0-1,"score_ennemi":0-1}}. "confidence" est ton niveau de certitude (1=très sûr, 0=très incertain) pour chaque champ. Le score de fin de partie (kills équipe vs kills adverses, affiché en grand en haut de la capture 1 de chaque côté) doit être extrait dans score_allie (côté JS001) et score_ennemi (côté adverse). La date et heure de la partie sont affichées en haut à droite de la capture 1 à côté de la durée (format JJ/MM/AAAA HH:MM:SS). Extrais uniquement l'heure au format "HH:MM" dans heure_partie, et la date au format "AAAA-MM-JJ" dans le champ date. Ne devine jamais un chiffre.`;
+    const prompt=`Tu es un extracteur de données pour Mobile Legends: Bang Bang (MLBB), mode classé. Capture 1 = tableau des scores. Capture 2 = écran de stats détaillées. Le joueur à suivre s'appelle exactement "JS001". Le héros fait probablement partie de : Lunox, Valentina, Brody, Clint. Réponds UNIQUEMENT avec un objet JSON valide, sans texte autour, sans markdown, avec exactement ces clés : {"resultat":"Victoire"|"Defaite"|null,"heroe":string|null,"kills":number|null,"deaths":number|null,"assists":number|null,"or":number|null,"score_performance":number|null,"degats_infliges":number|null,"degats_tourelle":number|null,"degats_subis":number|null,"participation_teamfight":number|null,"mvp":"MVP Victoire"|"MVP Defaite"|"Aucun"|null,"duree_partie":string|null,"heure_partie":string|null,"score_allie":number|null,"score_ennemi":number|null,"compo_allie":string|null,"compo_adverse":string|null,"confidence":{"resultat":0-1,"heroe":0-1,"kills":0-1,"deaths":0-1,"assists":0-1,"or":0-1,"score_performance":0-1,"degats_infliges":0-1,"participation_teamfight":0-1,"score_allie":0-1,"score_ennemi":0-1}}. "confidence" est ton niveau de certitude (1=très sûr, 0=très incertain) pour chaque champ. Le score de fin de partie (kills équipe vs kills adverses, affiché en grand en haut de la capture 1 de chaque côté) doit être extrait dans score_allie (côté JS001) et score_ennemi (côté adverse). La date et heure de la partie sont affichées en haut à droite de la capture 1 à côté de la durée (format JJ/MM/AAAA HH:MM:SS). Extrais uniquement l\'heure au format "HH:MM" dans heure_partie, et la date au format "AAAA-MM-JJ" dans le champ date. Pour les compositions, examine les portraits des héros dans le tableau des scores de la capture 1. Utilise la liste de référence suivante pour identifier chaque héros par son portrait officiel : Miya, Balmond, Saber, Alice, Nana, Tigreal, Alucard, Karina, Akai, Franco, Bane, Bruno, Clint, Rafaela, Eudora, Zilong, Fanny, Layla, Minotaur, Lolita, Hayabusa, Freya, Gord, Natalia, Kagura, Chou, Sun, Alpha, Ruby, Yi Sun-shin, Moskov, Johnson, Cyclops, Estes, Hilda, Aurora, Lapu-Lapu, Vexana, Roger, Karrie, Gatotkaca, Harley, Irithel, Grock, Argus, Odette, Lancelot, Diggie, Hylos, Zhask, Helcurt, Pharsa, Lesley, Jawhead, Angela, Gusion, Valir, Martis, Uranus, Hanabi, Chang'e, Kaja, Selena, Aldous, Claude, Vale, Leomord, Lunox, Hanzo, Belerick, Kimmy, Thamuz, Harith, Minsitthar, Kadita, Faramis, Badang, Khufra, Granger, Guinevere, Esmeralda, Terizla, X.Borg, Ling, Dyrroth, Lylia, Baxia, Masha, Wanwan, Silvanna, Cecilion, Carmilla, Atlas, Popol and Kupa, Yu Zhong, Luo Yi, Benedetta, Khaleed, Barats, Brody, Yve, Mathilda, Paquito, Gloo, Beatrix, Phoveus, Natan, Aulus, Aamon, Valentina, Edith, Floryn, Yin, Melissa, Xavier, Julian, Fredrinn, Joy, Novaria, Arlott, Ixia, Nolan, Cici, Chip, Zhuxin, Suyou, Lukas. La compo alliée (côté JS001, colonne gauche) contient 5 héros, la compo adverse (colonne droite) contient 5 héros. Retourne-les sous forme de chaîne séparée par des virgules (ex: "Aurora,Brody,Valentina,Atlas,Angela"). Ne devine jamais un chiffre.`;
     // Compresser les images avant envoi (limite Groq: 4MB total base64)
     async function compressToBase64(file, maxW=1280){
       return new Promise(res=>{
@@ -1476,6 +1734,8 @@ function showEditPanel(data,fromAnalysis){
       <div class="field"><label>Durée</label><input type="text" id="f_duree" placeholder="ex: 15:32" value="${data.duree_partie||''}"></div>
       <div class="field"><label>Heure</label><input type="text" id="f_heure" placeholder="ex: 00:39" value="${data.heure_partie||''}"></div>
       <div class="field" id="f_cat_wrap" style="display:none;"><label>Catégorie</label><div id="f_cat_display" style="padding:7px 8px;border-radius:6px;border:1px solid var(--line);font-size:13px;font-family:'Rajdhani',sans-serif;font-weight:700;"></div></div>
+      <div class="field" style="grid-column:1/-1;"><label>Compo alliée (séparée par virgules)</label><input type="text" id="f_compo_allie" placeholder="ex: Aurora,Brody,Valentina,Atlas,Angela" value="${data.compo_allie||''}"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Compo adverse (séparée par virgules)</label><input type="text" id="f_compo_adverse" placeholder="ex: Chou,Wanwan,Xavier,Khufra,Estes" value="${data.compo_adverse||''}"></div>
       <div class="field"><label>Score allié</label><input type="number" id="f_score_allie" value="${data.score_allie??''}" placeholder="ex: 32"></div>
       <div class="field"><label>Score adverse</label><input type="number" id="f_score_ennemi" value="${data.score_ennemi??''}" placeholder="ex: 20"></div>
       <div class="field"><label>MVP</label>
@@ -1564,7 +1824,9 @@ function showEditPanel(data,fromAnalysis){
       duree_partie:document.getElementById('f_duree').value.trim()||null,
       heure_partie:document.getElementById('f_heure').value.trim()||null,
       score_allie:document.getElementById('f_score_allie').value!==''?+document.getElementById('f_score_allie').value:null,
-      score_ennemi:document.getElementById('f_score_ennemi').value!==''?+document.getElementById('f_score_ennemi').value:null
+      score_ennemi:document.getElementById('f_score_ennemi').value!==''?+document.getElementById('f_score_ennemi').value:null,
+      compo_allie:document.getElementById('f_compo_allie').value.trim()||null,
+      compo_adverse:document.getElementById('f_compo_adverse').value.trim()||null
     };
     if(editingId){const idx=matches.findIndex(m=>String(m.id)===String(editingId));if(idx>-1)matches[idx]=match;}
     else matches.push(match);
@@ -1575,7 +1837,7 @@ function showEditPanel(data,fromAnalysis){
 }
 
 // ─── EXPORT / IMPORT ───
-const CSV_HEADERS=['date','heroe','role','mode_jeu','saison','resultat','kills','deaths','assists','or','score_performance','degats_infliges','degats_tourelle','degats_subis','participation_teamfight','mvp','duree_partie','heure_partie','score_allie','score_ennemi'];
+const CSV_HEADERS=['date','heroe','role','mode_jeu','saison','resultat','kills','deaths','assists','or','score_performance','degats_infliges','degats_tourelle','degats_subis','participation_teamfight','mvp','duree_partie','heure_partie','score_allie','score_ennemi','compo_allie','compo_adverse'];
 
 function exportCSV(){
   const lines=[CSV_HEADERS.join(',')];
@@ -1631,6 +1893,7 @@ function showImportPanel(){
 
 // ─── TABS ───
 function switchTab(id){
+  if(id==='tab-draft')setTimeout(renderDraft,50);
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active',c.id===id));
 }
@@ -1687,6 +1950,7 @@ document.getElementById('newSaisonMenuBtn').addEventListener('click',()=>{
 document.getElementById('exportBtn').addEventListener('click',exportCSV);
 document.getElementById('importBtn').addEventListener('click',showImportPanel);
 document.getElementById('resetBtn').addEventListener('click',()=>{if(!confirm('Supprimer toutes les parties ? Action irréversible.'))return;matches=[];persist();renderAll();});
+document.getElementById('draftHeroFilter')?.addEventListener('change',renderDraft);
 setupSlot(document.getElementById('slot1'),document.getElementById('file1'),1);
 setupSlot(document.getElementById('slot2'),document.getElementById('file2'),2);
 
