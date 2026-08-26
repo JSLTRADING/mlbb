@@ -740,6 +740,31 @@ const HERO_ARCHETYPES = {
   // PICK
   Selena:'Pick',Jawhead:'Pick',Minsitthar:'Pick',Chou:'Pick',
   Vexana:'Pick',Hanzo:'Pick',Kadita:'Pick',Aldous:'Pick',
+
+  // MISSING HEROES - Added
+  Balmond:'Engage',        // Fighter tank
+  Alice:'Sustain',         // Mage sustain
+  'Yi Sun-shin':'Pick',    // Assassin/Marksman
+  'Lapu-Lapu':'Engage',    // Fighter
+  Karrie:'Poke',           // Marksman anti-tank
+  Grock:'Engage',          // Tank engage
+  Hanabi:'Poke',           // Marksman
+  Kaja:'Pick',             // Support pick
+  Claude:'Poke',           // Marksman
+  Harith:'Dive',           // Mage dive
+  'X.Borg':'Teamfight',    // Fighter AoE
+  'Popol and Kupa':'Protect', // Support protect
+  'Yu Zhong':'Engage',     // Fighter tank
+  'Luo Yi':'Teamfight',    // Mage AoE
+  Phoveus:'Dive',          // Fighter anti-dash
+  Natan:'Poke',            // Marksman
+  Aulus:'Dive',            // Fighter dive
+  Melissa:'Protect',       // Marksman protect
+  Ixia:'Poke',             // Marksman
+  Cici:'Dive',             // Fighter dive
+  Zhuxin:'Teamfight',      // Mage AoE
+  Suyou:'Dive',            // Assassin
+  Lukas:'Dive',            // Fighter dive
   // NEW HEROES (2025-2026)
   Hirara:'Dive',       // Assassin
   Marcel:'Protect',    // Support
@@ -771,7 +796,13 @@ const ROAM_HEROES=['Angela','Mathilda','Diggie','Estes','Floryn','Rafaela','Carm
 function getArchetype(hero){
   if(!hero)return null;
   const h=hero.trim();
-  return HERO_ARCHETYPES[h]||HERO_ARCHETYPES[h.replace(/ /g,'_')]||null;
+  return HERO_ARCHETYPES[h]
+    ||HERO_ARCHETYPES[h.replace(/ /g,'_')]
+    ||HERO_ARCHETYPES[h.replace(/\./g,'')]
+    ||Object.keys(HERO_ARCHETYPES).reduce((found,key)=>{
+        return found||(key.toLowerCase()===h.toLowerCase()?HERO_ARCHETYPES[key]:null);
+      },null)
+    ||null;
 }
 
 function parseCompo(str){
