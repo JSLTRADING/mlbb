@@ -1172,6 +1172,7 @@ function catColor(cat){
 
 // ─── WINRATE PAR TYPE DE PARTIE ───
 function renderWRByType(){
+  const matchList=matchesForView();
   const el=document.getElementById('wrByType');
   if(!el)return;
   const cats=['Stomp V','Victoire nette','Victoire longue','Comeback','Contestée','Contestée rapide','Renversement','Défaite longue','Défaite nette','Stomp D'];
