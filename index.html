@@ -649,10 +649,11 @@ function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;}
 
 // ─── WINRATE PAR HEURE ───
 function renderWRByHour(){
+  const matchList=matchesForView();
   const el=document.getElementById('wrByHour');
   if(!el)return;
   const byHour=Array(24).fill(null).map(()=>({w:0,t:0}));
-  matches.forEach(m=>{
+  matchList.forEach(m=>{
     if(!m.heure_partie)return;
     const parts=m.heure_partie.match(/(\d+):(\d+)/);
     if(!parts)return;
@@ -1175,17 +1176,17 @@ function renderWRByType(){
   if(!el)return;
   const cats=['Stomp V','Victoire nette','Victoire longue','Comeback','Contestée','Contestée rapide','Renversement','Défaite longue','Défaite nette','Stomp D'];
   const map={};
-  matches.forEach(m=>{
+  matchList.forEach(m=>{
     const cat=classifyMatch(m);
     if(!cat)return;
     if(!map[cat])map[cat]={w:0,t:0};
     map[cat].t++;
     if(m.resultat==='Victoire')map[cat].w++;
   });
-  const total=matches.filter(m=>classifyMatch(m)).length;
+  const total=matchList.filter(m=>classifyMatch(m)).length;
   if(!total){el.innerHTML='<div class="empty-state">Pas encore de données de score.</div>';return;}
 
-  const globalWR=matches.length?Math.round(matches.filter(m=>m.resultat==='Victoire').length/matches.length*100):0;
+  const globalWR=matchList.length?Math.round(matchList.filter(m=>m.resultat==='Victoire').length/matchList.length*100):0;
 
   // 1. WR par type
   let html='<div style="margin-bottom:6px;font-size:11px;color:var(--muted);">Ligne pointillée = WR global ('+globalWR+'%)</div>';
@@ -1213,7 +1214,7 @@ function renderWRByType(){
   // 2. Corrélation performance × type
   html+='<div style="margin-top:20px;margin-bottom:8px;font-family:Inter,sans-serif;font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);">Performance individuelle par type</div>';
   const typeGroups={};
-  matches.forEach(m=>{
+  matchList.forEach(m=>{
     const cat=classifyMatch(m);if(!cat)return;
     if(!typeGroups[cat])typeGroups[cat]={kdas:[],dmgs:[],parts:[],all:[]};
     if(m.kills!=null&&m.deaths!=null&&m.assists!=null)typeGroups[cat].kdas.push((+m.kills+ +m.assists)/(+m.deaths+1));
@@ -1248,7 +1249,7 @@ function renderWRByType(){
   const keyCats=['Contestée','Contestée rapide','Victoire nette','Victoire longue','Comeback','Renversement','Défaite longue','Défaite nette','Stomp V','Stomp D'];
   const modeMap={};
   modes.forEach(mo=>keyCats.forEach(cat=>{modeMap[mo+'|'+cat]={w:0,t:0};}));
-  matches.forEach(m=>{
+  matchList.forEach(m=>{
     const cat=classifyMatch(m);if(!cat)return;
     const mo=m.mode_jeu||'Solo';
     const key=mo+'|'+cat;
@@ -1276,7 +1277,7 @@ function renderWRByType(){
 
   // 4. Tableau croisé ratio × durée
   html+='<div style="margin-top:20px;margin-bottom:8px;font-family:Inter,sans-serif;font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);">Croisement ratio × durée</div>';
-  html+=buildCrossTable(matches);
+  html+=buildCrossTable(matchList);
 
   el.innerHTML=html;
 }
