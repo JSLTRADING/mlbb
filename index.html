@@ -1245,7 +1245,7 @@ function renderWRByType(){
   // 3. WR par type × mode de jeu
   html+='<div style="margin-top:20px;margin-bottom:8px;font-family:Inter,sans-serif;font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);">WR par type × mode (Solo / Duo / Trio)</div>';
   const modes=['Solo','Duo','Trio'];
-  const keyCats=['Contestée','Victoire nette','Victoire longue','Comeback','Renversement','Défaite longue','Défaite nette','Stomp V','Stomp D'];
+  const keyCats=['Contestée','Contestée rapide','Victoire nette','Victoire longue','Comeback','Renversement','Défaite longue','Défaite nette','Stomp V','Stomp D'];
   const modeMap={};
   modes.forEach(mo=>keyCats.forEach(cat=>{modeMap[mo+'|'+cat]={w:0,t:0};}));
   matches.forEach(m=>{
